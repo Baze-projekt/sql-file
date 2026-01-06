@@ -3,16 +3,16 @@ CREATE DATABASE formula;
 
 USE formula;
 
--- 1. TIM
 
 CREATE TABLE tim (
     id INT AUTO_INCREMENT PRIMARY KEY,
     naziv VARCHAR(100) NOT NULL UNIQUE,
+    vlasnik VARCHAR(100),
     baza VARCHAR(100),
+	drzava VARCHAR(50) NOT NULL,
     budzet DECIMAL(15,2) NOT NULL DEFAULT 0
 );
 
--- 2. BOLID
 
 CREATE TABLE bolid (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -21,12 +21,12 @@ CREATE TABLE bolid (
     godina INT NOT NULL,
     motor VARCHAR(100),
     sasija VARCHAR(100),
+    stanje VARCHAR(30) DEFAULT 'Ispravan',
     FOREIGN KEY (tim_id) REFERENCES tim(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
 
--- 3. VOZAČ
 
 CREATE TABLE vozac (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -43,7 +43,19 @@ CREATE TABLE vozac (
     CONSTRAINT uniq_broj_tim UNIQUE(tim_id, broj)
 );
 
--- 4. STAZA
+CREATE TABLE vozac_bolid (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	bolid_id INT NOT NULL,
+    vozac_id INT NOT NULL,
+	FOREIGN KEY (bolid_id) REFERENCES bolid(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+	FOREIGN KEY (vozac_id) REFERENCES vozac(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+
 
 CREATE TABLE staza (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -53,52 +65,58 @@ CREATE TABLE staza (
     broj_krugova INT CHECK (broj_krugova > 0)
 );
 
--- 5. UTRKA
+CREATE TABLE sezona (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    naziv VARCHAR(100) NOT NULL,
+    godina YEAR NOT NULL,
+    organizator VARCHAR(100)
+);
+
+
+
 
 CREATE TABLE utrka (
     id INT AUTO_INCREMENT PRIMARY KEY,
     staza_id INT NOT NULL,
-    sezona YEAR NOT NULL,
+    sezona_id INT NOT NULL,
     datum DATE,
     FOREIGN KEY (staza_id) REFERENCES staza(id)
         ON DELETE CASCADE
+        ON UPDATE CASCADE,
+	FOREIGN KEY (sezona_id) REFERENCES sezona(id)
+        ON DELETE CASCADE
         ON UPDATE CASCADE
+	
 );
 
--- 6. SUDJELOVANJE 
-#drop table sudjelovanje;
+drop table sudjelovanje;
 CREATE TABLE sudjelovanje (
     id INT AUTO_INCREMENT PRIMARY KEY,
     utrka_id INT NOT NULL,
-    vozac_id INT NOT NULL,
-    bolid_id INT NOT NULL,
+    vozac_bolid_id INT NOT NULL,
     FOREIGN KEY (utrka_id) REFERENCES utrka(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    FOREIGN KEY (vozac_id) REFERENCES vozac(id)
+    FOREIGN KEY (vozac_bolid_id) REFERENCES vozac_bolid(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    FOREIGN KEY (bolid_id) REFERENCES bolid(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    CONSTRAINT uniq_vozac UNIQUE(utrka_id, vozac_id)#,
-#CONSTRAINT uniq_bolid UNIQUE(utrka_id, bolid_id)
+    CONSTRAINT uniq_vozac UNIQUE(utrka_id, vozac_bolid_id)
 );
 
--- 7. REZULTAT
+
 
 CREATE TABLE rezultat (
     id INT AUTO_INCREMENT PRIMARY KEY,
     sudjelovanje_id INT NOT NULL,
     pozicija INT CHECK (pozicija > 0),
     bodovi INT CHECK (bodovi >= 0),
-    vrijeme VARCHAR(50),
+    vrijeme TIME,
     FOREIGN KEY (sudjelovanje_id) REFERENCES sudjelovanje(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
 
--- 8. STRATEGIJA
+
 
 CREATE TABLE strategija (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -110,7 +128,7 @@ CREATE TABLE strategija (
         ON UPDATE CASCADE
 );
 
--- 9. KAZNA
+
 
 CREATE TABLE kazna (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -123,15 +141,34 @@ CREATE TABLE kazna (
         ON UPDATE CASCADE
 );
 
--- 10. SPONZOR
+CREATE TABLE poredak (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	vozac_id INT NOT NULL,
+    sezona_id INT NOT NULL,
+    kazna_id INT,
+	mjesto INT NOT NULL CHECK (mjesto > 0),
+    bodovi INT NOT NULL DEFAULT 0,
+    pobjede INT NOT NULL DEFAULT 0,
+    postolja INT DEFAULT 0,
+    FOREIGN KEY (vozac_id) REFERENCES vozac(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+	FOREIGN KEY (sezona_id) REFERENCES sezona(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+	FOREIGN KEY (kazna_id) REFERENCES kazna(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
 
 CREATE TABLE sponzor (
     id INT AUTO_INCREMENT PRIMARY KEY,
     naziv VARCHAR(100) NOT NULL,
+    drzava VARCHAR(50) NOT NULL,
     tip VARCHAR(100)
 );
 
--- 11. UGOVOR 
+
 
 CREATE TABLE ugovor (
     tim_id INT NOT NULL,
@@ -148,28 +185,21 @@ CREATE TABLE ugovor (
         ON UPDATE CASCADE
 );
 
--- 12. OSOBLJE
+
 
 CREATE TABLE osoblje (
     id INT AUTO_INCREMENT PRIMARY KEY,
     tim_id INT NOT NULL,
     ime VARCHAR(100),
     prezime VARCHAR(100),
+    uloga VARCHAR(100) NOT NULL,
     FOREIGN KEY (tim_id) REFERENCES tim(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
 
--- 13. ULOGA OSOBLJA
 
-CREATE TABLE uloga_osoblja (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    naziv VARCHAR(100) NOT NULL
-);
-
--- 14. ZADUŽENJE
-
-CREATE TABLE zaduzjenje (
+CREATE TABLE zaduzenje (
     id INT AUTO_INCREMENT PRIMARY KEY,
     osoblje_id INT NOT NULL,
     utrka_id INT NOT NULL,
@@ -182,7 +212,7 @@ CREATE TABLE zaduzjenje (
         ON UPDATE CASCADE
 );
 
--- 15. TROŠAK TIMA
+
 
 CREATE TABLE trosak_tima (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -197,12 +227,13 @@ CREATE TABLE trosak_tima (
 
 
 
-INSERT INTO tim (id, naziv, baza, budzet) VALUES
-(1, 'Red Bull Racing', 'Milton Keynes', 350000000),
-(2, 'Ferrari', 'Maranello', 340000000),
-(3, 'Mercedes', 'Brackley', 330000000),
-(4, 'McLaren', 'Woking', 250000000),
-(5, 'Aston Martin', 'Silverstone', 220000000);
+INSERT INTO tim (naziv, vlasnik, baza, drzava, budzet) VALUES
+(1, 'Red Bull Racing', 'Red Bull GmbH', 'Milton Keynes', 'UK', 145000000),
+(2, 'Ferrari', 'Ferrari S.p.A.', 'Maranello', 'Italija', 150000000),
+(3, 'Mercedes AMG F1', 'Mercedes-Benz', 'Brackley', 'UK', 140000000),
+(4, 'McLaren', 'McLaren Group', 'Woking', 'UK', 135000000),
+(5, 'Aston Martin', 'Lawrence Stroll', 'Silverstone', 'UK', 130000000);
+
 
 
 
@@ -216,15 +247,36 @@ INSERT INTO bolid (id, tim_id, model, godina, motor, sasija) VALUES
 
 INSERT INTO vozac (id, tim_id, ime, prezime, broj, nacionalnost, datum_rodjenja) VALUES
 (1, 1, 'Max', 'Verstappen', 1, 'Nizozemska', '1997-09-30'),
-(2, 1, 'Sergio', 'Perez', 11, 'Meksiko', '1990-01-26'),
-(3, 2, 'Charles', 'Leclerc', 16, 'Monako', '1997-10-16'),
+(2, 1, 'Yuki', 'Tsunoda', 22, 'Japan', '2000-05-11'),
+
+
 (4, 2, 'Carlos', 'Sainz', 55, 'Španjolska', '1994-09-01'),
+(3, 3, 'Charles', 'Leclerc', 16, 'Monako', '1997-10-16'),
+
 (5, 3, 'Lewis', 'Hamilton', 44, 'Ujedinjeno Kraljevstvo', '1985-01-07'),
 (6, 3, 'George', 'Russell', 63, 'Ujedinjeno Kraljevstvo', '1998-02-15'),
+
 (7, 4, 'Lando', 'Norris', 4, 'Ujedinjeno Kraljevstvo', '1999-11-13'),
 (8, 4, 'Oscar', 'Piastri', 81, 'Australija', '2001-04-06'),
+
 (9, 5, 'Fernando', 'Alonso', 14, 'Španjolska', '1981-07-29'),
 (10, 5, 'Lance', 'Stroll', 18, 'Kanada', '1998-10-29');
+
+
+INSERT INTO vozac_bolid (id, vozac_id, bolid_id) VALUES
+(1, 1, 1),
+(2, 2, 1),
+(3, 3, 2),
+(4, 4, 2),
+(5, 5, 3),
+(6, 6, 3),
+(7, 7, 4),
+(8, 8, 4),
+(9, 9, 5),
+(10,10,5);
+
+
+
 
 INSERT INTO staza (id, naziv, drzava, duljina_km, broj_krugova) VALUES
 (1, 'Bahrain International Circuit', 'Bahrein', 5.41, 57),
@@ -232,6 +284,10 @@ INSERT INTO staza (id, naziv, drzava, duljina_km, broj_krugova) VALUES
 (3, 'Albert Park', 'Australija', 5.28, 58),
 (4, 'Imola', 'Italija', 4.91, 63),
 (5, 'Red Bull Ring', 'Austrija', 4.32, 71);
+
+INSERT INTO sezona (id, naziv, godina, organizator) VALUES
+(1, 'Formula 1 World Championship', 2023, 'FIA'),
+(2, 'Formula 1 World Championship', 2024, 'FIA');
 
 
 INSERT INTO utrka (id, staza_id, sezona, datum) VALUES
@@ -241,17 +297,19 @@ INSERT INTO utrka (id, staza_id, sezona, datum) VALUES
 (4, 4, 2024, '2024-05-19'),
 (5, 5, 2024, '2024-06-30');
 
-INSERT INTO sudjelovanje (id, utrka_id, vozac_id, bolid_id) VALUES
-(1, 1, 1, 1),
-(2, 1, 2, 1),
-(3, 1, 3, 2),
-(4, 1, 4, 2),
-(5, 1, 5, 3),
-(6, 1, 6, 3),
-(7, 1, 7, 4),
-(8, 1, 8, 4),
-(9, 1, 9, 5),
-(10, 1, 10, 5);
+INSERT INTO sudjelovanje (id, utrka_id, vozac_bolid_id) VALUES
+-- Bahrain
+(1,1,1),(2,1,2),(3,1,3),(4,1,4),(5,1,5),
+(6,1,6),(7,1,7),(8,1,8),(9,1,9),(10,1,10),
+
+-- Monaco
+(11,2,1),(12,2,2),(13,2,3),(14,2,4),(15,2,5),
+(16,2,6),(17,2,7),(18,2,8),(19,2,9),(20,2,10),
+
+-- Monza
+(21,3,1),(22,3,2),(23,3,3),(24,3,4),(25,3,5),
+(26,3,6),(27,3,7),(28,3,8),(29,3,9),(30,3,10);
+
 
 
 INSERT INTO rezultat (id, sudjelovanje_id, pozicija, bodovi, vrijeme) VALUES
@@ -280,6 +338,14 @@ INSERT INTO kazna (id, sudjelovanje_id, opis, tip_kazne, sekunde) VALUES
 (4, 9, 'Prekasno vraćanje položaja', 'Drive-through', 20.0),
 (5, 10,'Nepravilno startanje', 'Time Penalty', 5.0);
 
+INSERT INTO poredak (id, vozac_id, sezona_id, mjesto, bodovi, pobjede, postolja) VALUES
+(1, 1, 2, 1, 150, 6, 8),
+(2, 3, 2, 2, 120, 2, 6),
+(3, 7, 2, 3, 110, 1, 5),
+(4, 5, 2, 4, 98, 0, 4),
+(5, 9, 2, 5, 85, 0, 3);
+
+
 
 INSERT INTO sponzor (id, naziv, tip) VALUES
 (1, 'Oracle', 'Tehnologija'),
@@ -288,25 +354,22 @@ INSERT INTO sponzor (id, naziv, tip) VALUES
 (4, 'Google', 'Tehnologija'),
 (5, 'Aramco', 'Nafta');
 
-INSERT INTO ugovor (tim_id, sponzor_id, godina_od, godina_do, vrijednost) VALUES
+INSERT INTO ugovor (id, tim_id, sponzor_id, godina_od, godina_do, vrijednost) VALUES
 (1, 1, 2022, 2026, 150000000),
 (2, 2, 2021, 2025, 120000000),
 (3, 3, 2020, 2024, 140000000),
 (4, 4, 2023, 2025, 80000000),
 (5, 5, 2022, 2026, 90000000);
 
-INSERT INTO osoblje (id, tim_id, ime, prezime) VALUES
-(1, 1, 'Christian', 'Horner'),
-(2, 2, 'Frédéric', 'Vasseur'),
-(3, 3, 'Toto', 'Wolff'),
-(4, 4, 'Andrea', 'Stella'),
-(5, 5, 'Mike', 'Krack');
+INSERT INTO osoblje (id, tim_id, ime, prezime, uloga) VALUES
+(1, 1, 'Adrian', 'Newey', 'Chief Designer'),
+(2, 2, 'Toto', 'Wolff', 'Team Principal'),
+(3, 3, 'Fred', 'Vasseur', 'Team Principal');
 
-
-INSERT INTO uloga_osoblja (id, naziv) VALUES
-(1, 'Voditelj tima'),
-(2, 'Inženjer trkaće strategije'),
-(3, 'Mehaničar');
+INSERT INTO zaduzenje (id, osoblje_id, utrka_id, opis) VALUES
+(1, 1, 1, 'Setup bolida'),
+(2, 2, 2, 'Strategija utrke'),
+(3, 3, 3, 'Operativno vodstvo');
 
 
 INSERT INTO trosak_tima (id, tim_id, godina, kategorija, iznos) VALUES
