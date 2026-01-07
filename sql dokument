@@ -380,3 +380,11 @@ INSERT INTO trosak_tima (id, tim_id, godina, kategorija, iznos) VALUES
 (5, 5, 2024, 'Plaće osoblja', 70000000);
 
 
+-- Mia
+-- Ukupni bodovi vozača u sezoni
+-- Automatsko izračunavanje “najbržeg vozača po timu u utrci”
+-- Trigger koji automatski dodaje bonus bodove za najbrže krugove
+-- “Simulacija strategije guma”
+-- Top 3 vozača po prosječnom vremenu po stazi
+-- Tim s najvećom prosječnom brzinom (vrijeme po krugu)
+-- 
