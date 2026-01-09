@@ -97,8 +97,8 @@ CREATE TABLE rezultat (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_utrka INT NOT NULL, #koja utrka
 	id_vozac_bolid INT NOT NULL, #tko je pobijedio
-    bodovi INT CHECK (bodovi >= 0),
     vrijeme TIME,
+    bodovi INT CHECK (bodovi >= 0),
     FOREIGN KEY (id_utrka) REFERENCES utrka(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
@@ -297,31 +297,32 @@ INSERT INTO staza ( naziv, lokacija, drzava, duljina_km, broj_krugova) VALUES
 
 
 
-INSERT INTO utrka (naziv, id_staza, id_sezona) VALUES
-('Bahrain GP',1,1),
-('Australian GP',2,1),
-('Chinese GP Sprint',3,1),
-('Japanese GP',4,1),
-('Saudi Arabian GP',5,1),
-('Miami GP Sprint',6,1),
-('Emilia Romagna GP',7,1),
-('Monaco GP',8,1),
-('Spanish GP',9,1),
-('Canadian GP',10,1),
-('Austrian GP',11,1),
-('British GP',12,1),
-('Belgian GP Sprint',13,1),
-('Hungarian GP',14,1),
-('Dutch GP',15,1),
-('Italian GP',16,1),
-('Azerbaijan GP',17,1),
-('Singapore GP',18,1),
-('United States GP',19,1),
-('Mexico City GP',20,1),
-('São Paulo GP',21,1),
-('Las Vegas GP',22,1),
-('Qatar GP Sprint',23,1),
-('Abu Dhabi GP',24,1);
+INSERT INTO utrka (naziv, id_staza, id_sezona, datum) VALUES
+('Bahrain GP',            1, 1, '2025-04-13'),
+('Australian GP',        2, 1, '2025-03-16'),
+('Chinese GP Sprint',    3, 1, '2025-03-23'),
+('Japanese GP',          4, 1, '2025-04-06'),
+('Saudi Arabian GP',     5, 1, '2025-04-20'),
+('Miami GP Sprint',      6, 1, '2025-05-04'),
+('Emilia Romagna GP',    7, 1, '2025-05-18'),
+('Monaco GP',            8, 1, '2025-05-25'),
+('Spanish GP',           9, 1, '2025-06-01'),
+('Canadian GP',         10, 1, '2025-06-15'),
+('Austrian GP',         11, 1, '2025-06-29'),
+('British GP',          12, 1, '2025-07-06'),
+('Belgian GP Sprint',   13, 1, '2025-07-27'),
+('Hungarian GP',        14, 1, '2025-08-03'),
+('Dutch GP',            15, 1, '2025-08-31'),
+('Italian GP',          16, 1, '2025-09-07'),
+('Azerbaijan GP',       17, 1, '2025-09-21'),
+('Singapore GP',        18, 1, '2025-10-05'),
+('United States GP',    19, 1, '2025-10-19'),
+('Mexico City GP',      20, 1, '2025-10-26'),
+('São Paulo GP',        21, 1, '2025-11-09'),
+('Las Vegas GP',        22, 1, '2025-11-22'),
+('Qatar GP Sprint',     23, 1, '2025-11-30'),
+('Abu Dhabi GP',        24, 1, '2025-12-07');
+
 
 
 
@@ -352,30 +353,31 @@ INSERT INTO sudjelovanje (id_utrka, id_vozac_bolid) VALUES
 (24,1);
 
 
-INSERT INTO rezultat (id_utrka, id_vozac_bolid, bodovi) VALUES
-(1,8,25),
-(2,7,25),
-(3,4,8),
-(4,1,25),
-(5,1,25),
-(6,5,8),
-(7,8,25),
-(8,7,25),
-(9,8,25),
-(10,6,25),
-(11,7,25),
-(12,1,25),
-(13,8,8),
-(14,3,25),
-(15,8,25),
-(16,1,25),
-(17,1,25),
-(19,1,25),
-(20,7,25),
-(21,7,25),
-(22,7,25),
-(23,8,8),
-(24,1,25);
+INSERT INTO rezultat (id_utrka, id_vozac_bolid, vrijeme, bodovi) VALUES
+(1,  8, '01:32:15', 25),
+(2,  7, '01:31:48', 25),
+(3,  4, '01:35:22', 8),
+(4,  1, '01:30:55', 25),
+(5,  1, '01:29:40', 25),
+(6,  5, '01:36:10', 8),
+(7,  8, '01:31:12', 25),
+(8,  7, '01:30:58', 25),
+(9,  8, '01:30:45', 25),
+(10, 6, '01:32:01', 25),
+(11, 7, '01:30:33', 25),
+(12, 1, '01:29:55', 25),
+(13, 8, '01:34:20', 8),
+(14, 3, '01:31:05', 25),
+(15, 8, '01:30:10', 25),
+(16, 1, '01:29:30', 25),
+(17, 1, '01:29:20', 25),
+(19, 1, '01:29:15', 25),
+(20, 7, '01:30:05', 25),
+(21, 7, '01:30:00', 25),
+(22, 7, '01:29:58', 25),
+(23, 8, '01:33:50', 8),
+(24, 1, '01:29:10', 25);
+
 
 
 
@@ -398,14 +400,14 @@ INSERT INTO kazna ( id_sudjelovanje, opis, tip_kazne, sekunde) VALUES
 -- 1. Ubacujemo vozače s bodovima
 INSERT INTO poredak (id_vozac, id_sezona, id_kazna, mjesto, bodovi, pobjede, postolja)
 VALUES
-(1, 1, NULL, 1, 175, 0, 0),   -- Verstappen
-(7, 1, NULL,2,  175, 0, 0),   -- Norris
-(8, 1, NULL, 3, 116, 0, 0),   -- Piastri
+(1, 1, NULL,2,  175, 8, 0),   -- Verstappen
+(2, 1, NULL,8,  0, 0, 0),     -- Tsunoda
 (3, 1, NULL, 4,  25, 0, 0),    -- Leclerc
-(6, 1, NULL, 5,  25, 0, 0),    -- Russell
 (4, 1, NULL, 6, 8, 0, 0),     -- Hamilton
 (5, 1, NULL, 7, 8, 0, 0),     -- Antonelli
-(2, 1, NULL,8,  0, 0, 0),     -- Tsunoda
+(6, 1, NULL, 5,  25, 2, 0),    -- Russell
+(7, 1, NULL, 1, 187, 7, 0),   -- Norris
+(8, 1, NULL, 3, 116, 7, 0),   -- Piastri
 (9, 1, NULL, 9, 0, 0, 0),     -- Alonso
 (10, 1, NULL, 10, 0, 0, 0);    -- Stroll
 
@@ -491,3 +493,56 @@ INSERT INTO trosak_tima ( id_tim, godina, kategorija, iznos) VALUES
 ( 4, 2024, 'Logistika', 50000000),
 ( 5, 2024, 'Plaće osoblja', 70000000);
 
+-- ---------------------------------------------------------------------------------------
+#PROCEDURA 1
+# Procedura koja vozaču s najvećim brojem bodova doda postolje kojim se označava da je najbolji vozač određene sezone.alter
+DELIMITER //
+CREATE PROCEDURE dodaj_postolje_najboljem (IN p_sezona INT)
+BEGIN
+    DECLARE v_vozac INT;
+
+    SELECT id_vozac
+    INTO v_vozac
+    FROM poredak
+    WHERE id_sezona = p_sezona
+    ORDER BY bodovi DESC
+    LIMIT 1;
+
+    UPDATE poredak
+    SET postolja = postolja + 1
+    WHERE id_vozac = v_vozac
+      AND id_sezona = p_sezona;
+END //
+DELIMITER ;
+
+CALL dodaj_postolje_najboljem(1);
+SELECT * from poredak;
+
+
+select * from osoblje join zaduzenje on osoblje.id=zaduzenje.id_osoblje
+join utrka on zaduzenje.id_utrka=utrka.id join rezultat on utrka.id=rezultat.id_utrka
+where zaduzenje.opis="Strategija utrke";
+
+#INDEX ??????
+-- rezultati jedne utrke
+SELECT * FROM rezultat WHERE id_utrka = 5;
+
+-- svi rezultati vozača
+SELECT * FROM rezultat WHERE id_vozac_bolid = 8;
+
+-- bodovi u sezoni
+SELECT SUM(bodovi)
+FROM rezultat r
+JOIN utrka u ON r.id_utrka = u.id
+WHERE u.id_sezona = 1
+  AND r.id_vozac_bolid = 8;
+CREATE INDEX idx_rezultat_utrka
+ON rezultat (id_utrka);
+
+CREATE INDEX idx_rezultat_vozac
+ON rezultat (id_vozac_bolid);
+
+CREATE INDEX idx_rezultat_utrka_vozac
+ON rezultat (id_utrka, id_vozac_bolid);
+
+show index from rezultat;
