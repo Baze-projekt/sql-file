@@ -753,3 +753,180 @@ ORDER BY ukupni_bodovi DESC, broj_pobjeda DESC;
  
  SELECT * FROM statistika_vozaca_po_sezoni;
  SELECT * FROM statistika_vozaca_po_sezoni WHERE ime_vozaca = 'Max' AND prezime_vozaca = 'Verstappen';
+
+-- ------------------------------------------------------------------------------------------------------------------------------------
+-- na dopušta promjenu imena tijekom sezone -- L
+DELIMITER //
+CREATE TRIGGER bu_naziv
+	BEFORE UPDATE ON tim
+	FOR EACH ROW
+BEGIN
+
+	DECLARE cur_s INT DEFAULT 0; 
+
+	IF NEW.naziv != OLD.naziv THEN
+		SELECT count(*)
+			INTO cur_s
+			FROM sezona
+            WHERE sezona.godina = YEAR(CURDATE())
+			AND MONTH(CURDATE()) BETWEEN 3 AND 12;
+            
+		IF cur_s > 0 THEN
+			SIGNAL SQLSTATE '40000'
+			SET MESSAGE_TEXT = 'Zabranjeno mjenjanje imena';
+		END IF;
+	END IF;
+    
+END// 
+DELIMITER ;
+
+-- --------------------------------------------------------------------------------------------------------------------------
+-- automatski dodaje kaznu na vrijeme -- L
+DELIMITER //
+CREATE TRIGGER ai_vrijeme
+	AFTER INSERT ON kazna
+	FOR EACH ROW
+BEGIN
+	DECLARE trka_id INT;
+    DECLARE vozac_id INT;
+    
+    SELECT id_utrka, id_vozac_bolid
+		INTO trka_id, vozac_id
+        FROM sudjelovanje
+        WHERE id = NEW.id_sudjelovanje;
+    
+	UPDATE rezultat 
+    SET vrijeme	= addtime(vrijeme, sec_to_time(NEW.sekunde)) 
+    WHERE id_utrka = trka_id AND id_vozac_bolid = vozac_id;
+    
+END//
+DELIMITER ;
+
+-- --------------------------------------------------------------------------------------------------------------------------
+-- automatski dodaje bodove vozacima u prvih 10, pobjede i podiume -- L
+DELIMITER //
+CREATE TRIGGER au_poredak
+	AFTER UPDATE ON utrka
+	FOR EACH ROW
+    
+BEGIN
+
+	DECLARE kraj INT DEFAULT 0;
+    DECLARE pozicija INT;
+    DECLARE bod_add INT;
+    DECLARE vozac_id INT;
+    DECLARE sezona_id INT;
+    DECLARE vb_id INT;
+    
+	DECLARE cur CURSOR FOR
+		SELECT id_vozac_bolid
+			FROM rezultat
+			WHERE id_utrka = NEW.id
+			ORDER BY vrijeme ASC, id ASC;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET kraj = 1;
+	
+	IF OLD.status = 'Traje' AND NEW.status = 'Zavrsena' THEN
+		SELECT id_sezona 
+			INTO sezona_id 
+			FROM utrka 
+			WHERE id = NEW.id;
+            
+		SET pozicija = 0;
+        
+        OPEN cur;
+        
+        read_loop: LOOP
+        FETCH cur INTO vb_id;
+                
+		IF kraj = 1 THEN
+			LEAVE read_loop;
+		END IF;
+        
+        SET pozicija = pozicija + 1;
+        
+		SET bod_add = CASE pozicija
+			WHEN 1 THEN 25
+			WHEN 2 THEN 18
+			WHEN 3 THEN 15
+			WHEN 4 THEN 12
+			WHEN 5 THEN 10
+			WHEN 6 THEN 8
+			WHEN 7 THEN 6
+			WHEN 8 THEN 4
+			WHEN 9 THEN 2
+			WHEN 10 THEN 1
+			ELSE 0
+		END;
+        
+		IF pozicija = 1 THEN
+			UPDATE poredak
+				SET pobjede = pobjede + 1
+				WHERE id_vozac = vozac_id
+				AND id_sezona = sezona_id;
+		END IF;
+            
+		IF pozicija <= 3 THEN
+			UPDATE poredak
+				SET postolja = postolja + 1
+				WHERE id_vozac = vozac_id
+				AND id_sezona = sezona_id;
+		END IF;
+        
+        IF bod_add > 0 THEN
+			SELECT id_vozac
+				INTO vozac_id
+				FROM vozac_bolid
+				WHERE id = vb_id;
+                
+			UPDATE poredak 
+				SET bodovi = bodovi + bod_add
+				WHERE id_vozac = vozac_id AND id_sezona = sezona_id;
+		END IF;
+        END LOOP;
+        CLOSE cur;
+	END IF;
+END//
+DELIMITER ;
+
+-- --------------------------------------------------------------------------------------------------------------------------
+-- smanjuje budžet nakon troškova i sprječava prelazak tog budžeta -- L
+DELIMITER //
+CREATE TRIGGER bi_trosak
+	BEFORE INSERT ON trosak_tima
+    FOR EACH ROW
+BEGIN
+
+	DECLARE budg DECIMAL(15,2);
+    
+    SELECT budzet
+		INTO budg
+        FROM tim
+        WHERE id = NEW.id_tim;
+	
+	IF NEW.iznos > budg THEN
+		SIGNAL SQLSTATE '40000'
+		SET MESSAGE_TEXT = 'Nema dovoljno sredstava u budžetu';
+	ELSE
+		UPDATE tim
+			SET budzet = budzet - NEW.iznos
+            WHERE id = NEW.id_tim;
+	END IF;
+    
+END //
+DELIMITER ;
+
+-- --------------------------------------------------------------------------------------------------------------------------
+-- ne dopušta insert mlađir od 18 -- L
+DELIMITER //
+CREATE TRIGGER bi_datum_rodenja
+	BEFORE INSERT ON vozac
+    FOR EACH ROW
+BEGIN
+ 
+	IF NEW.datum_rodjenja > date_sub(curdate(), interval 18 year) THEN
+		SIGNAL SQLSTATE '40000'
+		SET MESSAGE_TEXT = 'Vozač premlad';
+	END IF;
+    
+END//
+DELIMITER ;
