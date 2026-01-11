@@ -627,30 +627,6 @@ ON rezultat (id_utrka, id_vozac_bolid);
 show index from rezultat;
 
 -- ------------------------------------------------------------
-#Funkcija za ukupne bodove vozača u sezoni -M
-
-DROP FUNCTION IF EXISTS ukupni_bodovi_vozaca;
-
-DELIMITER //
-CREATE FUNCTION ukupni_bodovi_vozaca(p_id_vozac_bolid INT,p_id_sezona INT)
-RETURNS INT
-DETERMINISTIC
-BEGIN
-    DECLARE ukupno_bodova INT;
-    SELECT SUM(rezultat.bodovi)
-    INTO ukupno_bodova
-    FROM rezultat
-    JOIN utrka 
-        ON rezultat.id_utrka = utrka.id
-    WHERE rezultat.id_vozac_bolid = p_id_vozac_bolid
-      AND utrka.id_sezona = p_id_sezona;
-    RETURN IFNULL(ukupno_bodova, 0);
-END //
-DELIMITER ;
-
-SELECT ukupni_bodovi_vozaca(1, 1) AS ukupni_bodovi;
-
--- --------------------------------------------
 #Funkcija koja računa ukupne bodove vozača u jednoj sezoni - M
 
 DROP FUNCTION IF EXISTS bodovi_vozaca_sezona;
@@ -676,7 +652,7 @@ SELECT bodovi_vozaca_sezona(7, 1);
 
 
 -- ---------------------------------------------------------
-#Procedura za automatsko izračunavanje “najbržeg vozača po timu u utrci” - M
+#Procedura za automatsko izračunavanje najbržeg vozača po timu u utrci - M
 
 DROP PROCEDURE IF EXISTS najbrzi_vozac_tima_u_utrci;
 
