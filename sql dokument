@@ -625,3 +625,155 @@ CREATE INDEX idx_rezultat_utrka_vozac
 ON rezultat (id_utrka, id_vozac_bolid);
 
 show index from rezultat;
+
+-- ------------------------------------------------------------
+#Funkcija za ukupne bodove vozača u sezoni -M
+
+DROP FUNCTION IF EXISTS ukupni_bodovi_vozaca;
+
+DELIMITER //
+CREATE FUNCTION ukupni_bodovi_vozaca(p_id_vozac_bolid INT,p_id_sezona INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE ukupno_bodova INT;
+    SELECT SUM(rezultat.bodovi)
+    INTO ukupno_bodova
+    FROM rezultat
+    JOIN utrka 
+        ON rezultat.id_utrka = utrka.id
+    WHERE rezultat.id_vozac_bolid = p_id_vozac_bolid
+      AND utrka.id_sezona = p_id_sezona;
+    RETURN IFNULL(ukupno_bodova, 0);
+END //
+DELIMITER ;
+
+SELECT ukupni_bodovi_vozaca(1, 1) AS ukupni_bodovi;
+
+-- --------------------------------------------
+#Funkcija koja računa ukupne bodove vozača u jednoj sezoni - M
+
+DROP FUNCTION IF EXISTS bodovi_vozaca_sezona;
+
+DELIMITER //
+CREATE FUNCTION bodovi_vozaca_sezona(p_id_vozac INT,p_id_sezona INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE ukupno INT;
+    SELECT SUM(rezultat.bodovi)
+    INTO ukupno
+    FROM rezultat
+    JOIN vozac_bolid ON rezultat.id_vozac_bolid = vozac_bolid.id
+    JOIN utrka ON rezultat.id_utrka = utrka.id
+    WHERE vozac_bolid.id_vozac = p_id_vozac
+      AND utrka.id_sezona = p_id_sezona;
+    RETURN IFNULL(ukupno, 0);
+END //
+DELIMITER ;
+
+SELECT bodovi_vozaca_sezona(7, 1);
+
+
+-- ---------------------------------------------------------
+#Procedura za automatsko izračunavanje “najbržeg vozača po timu u utrci” - M
+
+DROP PROCEDURE IF EXISTS najbrzi_vozac_tima_u_utrci;
+
+DELIMITER //
+CREATE PROCEDURE najbrzi_vozac_tima_u_utrci(IN p_id_tim INT,IN p_id_utrka INT)
+BEGIN
+    SELECT vozac.id AS vozac_id,
+           vozac.ime AS ime,
+           vozac.prezime AS prezime,
+           rezultat.vrijeme AS najbolje_vrijeme
+    FROM rezultat
+    JOIN vozac_bolid ON rezultat.id_vozac_bolid = vozac_bolid.id
+    JOIN vozac ON vozac_bolid.id_vozac = vozac.id
+    JOIN tim ON vozac.id_tim = tim.id
+    WHERE tim.id = p_id_tim
+      AND rezultat.id_utrka = p_id_utrka
+    ORDER BY rezultat.vrijeme ASC
+    LIMIT 1;
+END //
+DELIMITER ;
+
+CALL najbrzi_vozac_tima_u_utrci(1, 5);
+-- ----------------------------------------
+# Okidač koji automatski dodaje bonus bodove za najbrži krug u utrci - M
+
+DROP TRIGGER IF EXISTS dodaj_bonus_najbrzi_krug;
+
+DELIMITER //
+CREATE TRIGGER dodaj_bonus_najbrzi_krug
+AFTER INSERT ON rezultat
+FOR EACH ROW
+BEGIN
+    DECLARE min_vrijeme TIME;
+    SELECT MIN(vrijeme) 
+    INTO min_vrijeme
+    FROM rezultat
+    WHERE id_utrka = NEW.id_utrka;
+    IF NEW.vrijeme = min_vrijeme THEN
+        UPDATE rezultat
+        SET bodovi = bodovi + 1  
+        WHERE id = NEW.id;
+    END IF;
+END //
+DELIMITER ;
+
+-- ----------------------------------------------------
+#Vozači koji su osvojili bodove u više od jedne utrke u sezoni i njihov prosjek bodova po utrci - M
+
+SELECT 
+    vozac.ime AS ime_vozaca,
+    vozac.prezime AS prezime_vozaca,
+    tim.naziv AS ime_tima,
+    sezona.godina AS sezona,
+    COUNT(rezultat.id) AS broj_utrka_sa_bodovima,
+    AVG(rezultat.bodovi) AS prosjek_bodova
+FROM vozac
+JOIN vozac_bolid ON vozac.id = vozac_bolid.id_vozac
+JOIN sudjelovanje ON vozac_bolid.id = sudjelovanje.id_vozac_bolid
+JOIN rezultat ON sudjelovanje.id = rezultat.id
+JOIN utrka ON rezultat.id_utrka = utrka.id
+JOIN sezona ON utrka.id_sezona = sezona.id
+JOIN tim ON vozac.id_tim = tim.id
+WHERE rezultat.bodovi > 0
+GROUP BY vozac.id, sezona.id
+HAVING COUNT(rezultat.id) > 1
+ORDER BY prosjek_bodova DESC;
+
+-- --------------------------------------------------------------
+# Pogled: Statistika vozača po sezoni - M
+
+DROP VIEW IF EXISTS statistika_vozaca_po_sezoni;
+
+CREATE VIEW statistika_vozaca_po_sezoni AS
+SELECT
+    vozac.id AS vozac_id,
+    vozac.ime AS ime_vozaca,
+    vozac.prezime AS prezime_vozaca,
+    tim.id AS tim_id,
+    tim.naziv AS ime_tima,
+    sezona.godina AS sezona,
+    COUNT(DISTINCT utrka.id) AS broj_utrka,
+    SUM(rezultat.bodovi) AS ukupni_bodovi,
+    SUM(IF(rezultat.bodovi = 25, 1, 0)) AS broj_pobjeda,
+    SUM(IF(rezultat.bodovi >= 15, 1, 0)) AS broj_postolja,
+    SUM(kazna.sekunde) AS ukupne_kazne_sekunde,
+    AVG(TIME_TO_SEC(rezultat.vrijeme) / staza.broj_krugova) AS prosjecno_vrijeme_po_krugu
+FROM vozac
+JOIN vozac_bolid ON vozac.id = vozac_bolid.id_vozac
+JOIN sudjelovanje ON vozac_bolid.id = sudjelovanje.id_vozac_bolid
+JOIN rezultat ON sudjelovanje.id = rezultat.id
+JOIN utrka ON rezultat.id_utrka = utrka.id
+JOIN staza ON utrka.id_staza = staza.id
+JOIN sezona ON utrka.id_sezona = sezona.id
+JOIN tim ON vozac.id_tim = tim.id
+LEFT JOIN kazna ON sudjelovanje.id = kazna.id_sudjelovanje
+GROUP BY vozac.id, sezona.id, tim.id
+ORDER BY ukupni_bodovi DESC, broj_pobjeda DESC;
+ 
+ SELECT * FROM statistika_vozaca_po_sezoni;
+ SELECT * FROM statistika_vozaca_po_sezoni WHERE ime_vozaca = 'Max' AND prezime_vozaca = 'Verstappen';
