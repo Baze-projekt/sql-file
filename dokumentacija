@@ -1,0 +1,50 @@
+4.1 Relacija tim
+Prva relacija započinje atributom ID koji je cjelobrojna vrijednost i primarni ključ. Kako bismo si optimizirali unos podataka, dodan mu je oblik AUTO_INCREMENT koji se omogućava automatsko generiranje jedinstvenog broja pri unosu podataka. Iz tog razloga kod inserta ne označavamo id niti u jednom popunjavanju relacije. Pošto nismo odredili početnu vrijednost, popunjavanje će automatski početi od 1. Atributi naziv, vlasnik, baza i drzava određeni su tipom VARCHAR i ograničeni su na 100, odnosno 50 znakova. Svaki upis mora postojati, što potvrđuje NOT NULL ograničenje, a naziv mora biti jedinstven kako je određeno UNIQUE ograničenjem. Budzet je atribut zapisan u decimalnom zapisu s maksimalnih 15 znakova, od toga 2 označavaju parcijalni dio broja, zapis mora biti unesen s početnom vrijednošću 0.
+
+4.2 Relacija bolid
+Tablica bolid također automatski popunjava primarni ključ id, a koristi se i podacima iz prethodne relacije tim što je označeno oznakom FOREIGN KEY. Također podaci koji se u relaciji tim ažuriraju ili brišu, automatski će se promijeniti u relaciji bolid. Model, motor i sasija su tipa VARCHAR i dozvoljen je unos maksimalnih 100 znakova te vrijednosti trebaju biti validne. Stanje je atribut određen maksimalnim brojem znakova od 30, a ako se ne unese vrijednost koja nalaže drugačije, stanje će biti postavljeno na 'Ispravan'. Ostala dopuštena stanja su 'Neispravan', 'Na servisu' i 'Otpisan', što dozvoljava CHECK ograničenje koje smo nazvali chk_stanje.
+
+4.3 Relacija vozac
+Primarni kljuc tablice id dodaje se automatski, id_tim referencira na podatke iz istoimene relacije te mijenja sadržaje pri ažuriranju i brisanju, sifra je jedinstven niz od točno 5 znakova. Ime, prezime i nacionalnost vozača su VARCHAR vrijednosti do 100 znakova. Broj na bolidu označen je cjelobrojnom vrijednošću, a datum rođenja vremenskim tipom podatka DATE koji je u formatu '%Y'-'%m'-'%d'. Svi podaci trebaju biti uneseni. Svaki vozač mora imati identifikacijsku sliku tipa Long Binary Large Object. Postavljena su dva UNIQUE ograničenja, na kombinaciju sifre i prezimena koji osigurava jedinstvenost pojedinog vozača te na kombinaciju id_tima i broja koji osigurava da svi vozači imaju različit broj na bolidu.
+
+4.4 Relacija sezona
+Relacija koja osim automatski dodanog primarnog ključa, sadrži samo godinu koja označava vremenski period u kojem se voze svi Grand Prixevi. 
+
+4.5 Relacija vozac_bolid 
+Id se samostalno popunjava. Relacija povezuje bolid i vozača tog vozača koji ga vozi te sezonu u kojoj vozi. Relacija sadrži isključivo strane ključeve koji su eksplicitno navedeni.
+
+4.6 Relacija staza
+Atribut id automatski se generira od broja 1. Naziv je jedinstveni atribut za niz znakova maksimalne duljine od 100, kao i lokacija i država u kojoj je staza smještena. Duljina staze je decimalna vrijednost od 5 brojeva što označava troznamenkastu vrijednost s dva decimalna mjesta. Broj krugova je cjelobrojna vrijednost koja mora biti strogo veća od 0 što osigurava imenovano chk_broj_krugova ograničenje. Sve vrijednosti trebaju biti unesene.
+
+4.7 Relacija utrka
+Uz primarni ključ koji se automatski inkrementira, naziv od 100 maksimalnih znakova i datuma tipa DATE, relacija povezuje podatke iz relacija staza i sezona preko stranih ključeva koji automatski mijenjaju podatke pri ažuriranji i brisanju. Svi podaci su NOT NULL.
+
+4.8 Relacija sudjelovanje
+Id je autoinkrementalan. Relacija koja ujedinjuje podatke relacija utrka i vozac_bolid te po ograničenju uniq_utrka_vozac_bolid moraju biti jedinstvene kombinacije kako bi osigurali da se svaki vozač može jednom sudjelovati na utrci. Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.9 Relacija rezultat
+Primarni ključ automatski se dodjeljuje. Tablica koristi podatke utrke i vozac_bolida koji se referenciraju. Vrijeme je tipa time, a bodovi tipa INT koji moraju biti pozitivne vrijednosti. Na bodove i vrijeme nisu postavljena NOT NULL ograničenja zbog izvanrednih situacija, diskvalifikacija i sl. Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.10 Relacija strategija
+Primarni se ključ automatski generira. Relacija strategija referencira na relaciju sudjelovanje, a podaci u njoj se odnose na broj ulazaka u boks te na tipove guma koji su cjelobrojne, odnosno VARCHAR(100) vrijednosti. Sve vrijednsoti moraju biti unesene, a broj ulazaka u boks je minimalno 0 (chk_ulasci_boks). Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.11 Relacija kazna
+Id je cjelobrojni primarni ključ, id_sudjelovnje je primarni ključ svoje relacije, ovdje je kao strani ključ. Opis kazne je tipa text, što omogućuje unos 65,535 znakova s 2 bytea dodatnog opterećenja (overhead). Tip kazne je VARCHAR vrijednost ograničena na 30 znakova, a može poprimiti 9 mogućih vrijednosti, u suprotnom krši chk_tip_kazne ograničenje. Sekunde su atribut koji označava broj sekundi koje vozač gubi zbog pojedine kazne i mora biti pozitivna vrijednost. Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.12 Relacija poredak
+Id je jedinstveni identifikacijski broj koji će se povećati kod svakog zapisa. Id relacija vozac, sezona i kazna povezuju se s podacima iz svojih tablica. Id_kazna je mora biti ispunjeno ako vozač nema kazne ili je vrijednost nepoznata. Mjesto je cjelobrojna vrijednost rednog broja vozača koje je chk_mjesto ograničenjem ograničeno da zapisi kreću od broja 1. Bodovi, pobjede i postolja su cjelobrojne vrijednosti koje su za svakog vozača postavljene na 0 ako se drugačije ne unese. Promjene u podacima stranih ključeva bit će registrirane.
+
+4.13. Relacija sponzor
+Id se automatski dodaje, naziv je ime tvrtke od maksimalnih 100 znakova koja dolazi iz države koja je ograničena na 50 znakova. Tip je VARCHAR vrijednost od 100 znakova, a označava granu kojom sponzor pridonosi određenom timu. Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.14 Relacija ugovor 
+Primarni ključ je id koji je cjelobrojna vrijednost koja se automatski dodjeljuje pri unosu podataka. Relacija ugovor povezuje tim i sponzora, strane ključeve i njihove podatke. Godina _od i godina_do su vremenske vrijednosti tipa YEAR, a vrijednost je novčana svota kojom sponzor podupire tim, vrijednost je od 15 znamenki, odnosno 2 decimalne koje moraju biti veće od 0 po ograničenju chk_vrijednost. Sve vrijednosti trebaju biti unesene osim opcionalno atributa godina_do u slučaju ugovora na neodređeno. Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.15 Relacija osoblje
+Id se automatski uvećava za svaku vrijednost. Id tima je ključ koji referencira na tablicu tim, cjelobrojna je vrijednost. Ime, prezime i uloga su VARCHAR vrijednosti od 100 znakova i svi podaci trebaju biti uneseni. Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.16 Relacija zaduzenje
+Automatski dodan primarni ključ. Zaduženje spaja relacije osoblje i utrka s dodatnim atributom opis koji je tekstualnog tipa. Strani ključevi se na promjene ažuriraju ili obrišu u svim relacijma.
+
+4.17 Relacija trosak_tima
+Relacija ima id kao primarni ključ koji se pri upisu dodjeljuje. Id_tim i id_sezona referenciraju relacije sezona i tim i njihove podatke, a pri ažuriranju ili brisanju, mijenjaju se podaci u svim tablicama. Kategorija je znakovni podatak (max 100) za vrstu troška, a iznos je decimalna vrijednost od 13 znakova prije, odnosno 2 znaka nakon decimalne točke, vrijednost koja mora biti pozitivna.
