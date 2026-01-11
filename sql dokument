@@ -930,3 +930,68 @@ BEGIN
     
 END//
 DELIMITER ;
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+--  NOVA TABLICA ZA LOGIRANJE --- S
+CREATE TEMPORARY TABLE sistemski_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tablica VARCHAR(50),
+    akcija VARCHAR(50),
+    poruka TEXT,
+    vrijeme TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- TRIGGER: Prati promjene budžeta --- S
+DELIMITER //
+CREATE TRIGGER prati_budzet
+AFTER UPDATE ON tim
+FOR EACH ROW
+BEGIN
+    IF OLD.budzet <> NEW.budzet THEN
+        INSERT INTO sistemski_log (tablica, akcija, poruka)
+        VALUES ('tim', 'UPDATE', CONCAT('Budžet tima ', OLD.naziv, ' promijenjen sa ', OLD.budzet, ' na ', NEW.budzet));
+    END IF;
+END;
+//
+DELIMITER ;
+
+-- PROCEDURA: Dohvati sažetak sezone --- S
+-- Ovo vraća tablicu s izračunatim podacima
+DELIMITER //
+CREATE PROCEDURE DohvatiStatistiku()
+BEGIN
+    SELECT 
+        (SELECT COUNT(*) FROM tim) as broj_timova,
+        (SELECT COUNT(*) FROM vozac) as broj_vozaca,
+        (SELECT AVG(budzet) FROM tim) as prosjecni_budzet,
+        (SELECT naziv FROM tim ORDER BY budzet DESC LIMIT 1) as najbogatiji_tim;
+END;
+//
+DELIMITER ;
+
+-- POSTAVKE SIGURNOSTI I LOGINA --- S 
+
+-- Tablica za web login
+CREATE TABLE korisnici (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(50) NOT NULL, 
+    rola ENUM('admin', 'user') NOT NULL
+);
+
+-- Unos web korisnika --- S
+INSERT INTO korisnici (username, password, rola) VALUES 
+('sefe', 'sifra123', 'admin'),
+('gost', 'gost123', 'user');
+
+-- Kreiranje MySQL korisnika za Python konekciju --- S
+CREATE USER IF NOT EXISTS 'f1_admin'@'%' IDENTIFIED BY 'admin_pass';
+CREATE USER IF NOT EXISTS 'f1_viewer'@'%' IDENTIFIED BY 'viewer_pass';
+
+-- Davanje prava --- S
+GRANT ALL PRIVILEGES ON formula.* TO 'f1_admin'@'%';
+GRANT SELECT ON formula.* TO 'f1_viewer'@'%';
+FLUSH PRIVILEGES;
+
+-------------------------------------------------------------------------------------------------------------------
