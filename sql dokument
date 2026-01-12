@@ -995,3 +995,233 @@ GRANT SELECT ON formula.* TO 'f1_viewer'@'%';
 FLUSH PRIVILEGES;
 
 -------------------------------------------------------------------------------------------------------------------
+
+
+#MILA
+
+-------------------------------------------------------------- FUNKCIJE: -----------------------------------------------------------
+-- pretvori brzinu u mph
+DELIMITER //
+
+CREATE FUNCTION kmh_u_mph(brzina_kmh DECIMAL(6,2))
+RETURNS DECIMAL(6,2)
+DETERMINISTIC
+BEGIN
+    RETURN brzina_kmh * 0.621371;
+END//
+
+DELIMITER ;
+
+SELECT kmh_u_mph(100);
+
+
+
+-- odvozene utrke
+DELIMITER //
+
+CREATE FUNCTION broj_ucestvovanja_vozaca(p_id_vozac INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE br INT;
+
+    SELECT COUNT(DISTINCT s.id)
+    INTO br
+    FROM vozac_bolid vb
+    JOIN sudjelovanje s ON s.id_vozac_bolid = vb.id
+    JOIN rezultat r ON r.id_utrka = s.id_utrka
+    WHERE vb.id_vozac = p_id_vozac;
+
+    RETURN br;
+END//
+
+DELIMITER ;
+
+SELECT broj_ucestvovanja_vozaca(1); 
+
+
+
+
+-- najbolji vozac po nastupima
+
+DELIMITER //
+CREATE FUNCTION najbolji_vozac_po_nastupima(
+    p_id_tim INT
+)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE vozac_id INT;
+
+    SELECT vb.id_vozac
+    INTO vozac_id
+    FROM vozac_bolid vb
+    JOIN vozac v ON v.id = vb.id_vozac
+    JOIN sudjelovanje s ON s.id_vozac_bolid = vb.id
+    WHERE v.id_tim = p_id_tim
+    GROUP BY vb.id_vozac
+    ORDER BY COUNT(s.id) DESC
+    LIMIT 1;
+
+    RETURN vozac_id;
+END//
+DELIMITER ;
+
+SELECT v.ime, v.prezime
+FROM vozac v
+WHERE v.id = najbolji_vozac_po_nastupima(1);
+
+
+
+-- najbolji vozac u timu
+DELIMITER //
+CREATE FUNCTION najbolji_vozac_u_timu(
+    p_id_tim INT,
+    p_id_sezona INT
+)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE vozac_id INT;
+    SELECT vb.id_vozac
+    INTO vozac_id
+    FROM view_bodovi_vozaca vb
+    JOIN vozac v ON v.id = vb.id_vozac
+    WHERE v.id_tim = p_id_tim
+      AND vb.id_sezona = p_id_sezona
+    ORDER BY vb.bodovi DESC
+    LIMIT 1;
+    RETURN vozac_id;
+END //
+DELIMITER ;
+
+
+SELECT CONCAT(v.ime, ' ', v.prezime) AS najbolji_vozac
+FROM vozac v
+WHERE v.id = najbolji_vozac_u_timu(1,1);
+----------------------------------------------------------------------------------------------------------------------------------------------------- 
+
+
+-------------------------------------------------------------------------------- VIEW ------------------------------------------------------------------------------
+
+#1
+
+CREATE OR REPLACE VIEW view_statistika_timova AS
+SELECT 
+    t.id AS id_tim,
+    t.naziv AS tim,
+    COUNT(DISTINCT v.id) AS broj_vozaca,
+    t.budzet AS ukupni_budzet,
+    AVG(TIMESTAMPDIFF(YEAR, v.datum_rodjenja, CURDATE())) AS prosjecna_starost_vozaca,
+    COUNT(DISTINCT u.id_sponzor) AS broj_sponzora
+FROM tim t
+LEFT JOIN vozac v ON v.id_tim = t.id
+LEFT JOIN ugovor u ON u.id_tim = t.id
+GROUP BY t.id, t.naziv, t.budzet;
+
+select * from view_statistika_timova;
+
+
+#2 
+
+CREATE OR REPLACE VIEW view_bodovi_vozaca AS
+SELECT
+    vb.id_vozac,
+    u.id_sezona,
+    COUNT(r.id) * 10 + COUNT(r.vrijeme) * 15 AS bodovi
+FROM vozac_bolid vb
+JOIN rezultat r ON r.id_vozac_bolid = vb.id
+JOIN utrka u ON u.id = r.id_utrka
+GROUP BY vb.id_vozac, u.id_sezona;
+
+SELECT * FROM view_bodovi_vozaca;
+
+
+#3 
+
+CREATE OR REPLACE VIEW view_najbrzi_vozaci AS
+SELECT 
+    r.id_utrka,
+    vb.id_vozac,
+    MIN(r.vrijeme) AS najbrze_vrijeme
+FROM rezultat r
+JOIN vozac_bolid vb ON vb.id = r.id_vozac_bolid
+GROUP BY r.id_utrka, vb.id_vozac;
+
+
+select * from view_najbrzi_vozaci;
+
+
+
+#4
+
+CREATE OR REPLACE VIEW view_bodovi_timova AS
+SELECT
+    t.id AS id_tim,
+    t.naziv AS tim,
+    SUM(p.bodovi) AS ukupni_bodovi
+FROM poredak p
+JOIN vozac v ON v.id = p.id_vozac
+JOIN tim t ON t.id = v.id_tim
+GROUP BY t.id, t.naziv;
+
+select * from view_bodovi_timova;
+
+
+#5 
+
+CREATE OR REPLACE VIEW view_broj_utrka_sezona AS
+SELECT
+    s.godina,
+    COUNT(u.id) AS broj_utrka
+FROM sezona s
+LEFT JOIN utrka u ON u.id_sezona = s.id
+GROUP BY s.godina;
+
+
+select * from view_broj_utrka_sezona;
+
+
+----------------------------------------------------------------------------------- PROCEDURE -----------------------------------------------------------------------------
+
+-- dodavanje utrke
+DELIMITER //
+
+CREATE PROCEDURE dodaj_utrku(
+    p_naziv VARCHAR(100),
+    p_id_staza INT,
+    p_id_sezona INT,
+    p_datum DATE
+)
+BEGIN
+    INSERT INTO utrka (naziv, id_staza, id_sezona, datum)
+    VALUES (p_naziv, p_id_staza, p_id_sezona, p_datum);
+END//
+
+DELIMITER ;
+
+CALL dodaj_utrku('Test GP', 1, 1, NULL);
+
+select * from utrka;
+
+-- starost vozaca
+
+DELIMITER //
+
+CREATE PROCEDURE prosjecna_starost_vozaca_tima(
+    p_id_tim INT
+)
+BEGIN
+    SELECT 
+        t.naziv AS tim,
+        ROUND(AVG(TIMESTAMPDIFF(YEAR, v.datum_rodjenja, CURDATE())),2) AS prosjecna_starost
+    FROM tim t 
+    JOIN vozac v ON v.id_tim = t.id
+    WHERE t.id = p_id_tim;
+END//
+
+DELIMITER ;
+
+CALL prosjecna_starost_vozaca_tima(1);
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
