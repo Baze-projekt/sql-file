@@ -1126,7 +1126,174 @@ BEGIN
 END//
 
 DELIMITER ;
+-- ---------------------------------------------------------------------------------------------------------------------
 
-CALL prosjecna_starost_vozaca_tima(1);
+#Nikolina
+
+############################################33
+#TRANSAKCIJA 1. 
+#Napisati transakciju koja će unijeti podatke za pobjednika utrke te ovisno o tome ažurirati relaciju poredak
+START TRANSACTION;
+INSERT INTO rezultat (id_utrka, id_vozac_bolid, vrijeme, bodovi)
+VALUES (18, 1, '01:30:22', 25);
+UPDATE poredak
+SET bodovi = bodovi + 25,
+    pobjede = pobjede + 1
+WHERE id_vozac = (
+    SELECT id_vozac
+    FROM vozac_bolid
+    WHERE id = 1
+)
+AND id_sezona = 1;
+
+COMMIT;
+
+############################################33
+#TRANSAKCIJA 2.
+#Napisati transakciju koja će obrisati fiksih 5 bodova za zasluženu kaznu 
+START TRANSACTION;
+
+INSERT INTO kazna (id_sudjelovanje, opis, tip_kazne, sekunde)
+VALUES (11, 'Opasna vožnja', 'Time Penalty', 10.0);
+
+SET @kazna_id = LAST_INSERT_ID();
+
+UPDATE poredak
+SET id_kazna = @kazna_id,
+    bodovi = bodovi - 5
+WHERE id_vozac = (
+    SELECT vb.id_vozac
+    FROM sudjelovanje s
+    JOIN vozac_bolid vb ON s.id_vozac_bolid = vb.id
+    WHERE s.id = 11
+)
+AND id_sezona = 1;
+
+COMMIT;
+
+############################################
+#TRANSAKCIJA 3.
+#Napisati transakciju koja će promijeniti stanje bolida u 'Na servisu' te vozaču s idjem 1 dodati novi bolid.
+START TRANSACTION;
+UPDATE bolid
+SET stanje = 'Na servisu'
+WHERE id = (
+    SELECT id_bolid
+    FROM vozac_bolid
+    WHERE id_vozac = 2 AND id_sezona = 1
+);
+
+INSERT INTO vozac_bolid (id_bolid, id_vozac, id_sezona)
+VALUES (3, 2, 1);
+
+COMMIT;
+select * from bolid;
+select * from vozac_bolid;
+############################################
+#PROCEDURA 
+#Napisati proceduru koja će uvećati pobjede kad vozač ostvari prvo mjesto u utrci.
+DELIMITER //
+
+CREATE PROCEDURE dodaj_pobjedu_pobjedniku (IN p_id_utrka INT)
+BEGIN
+    DECLARE v_id_vozac INT DEFAULT NULL;
+    DECLARE v_id_sezona INT;
+
+    SELECT id_sezona
+    INTO v_id_sezona
+    FROM utrka
+    WHERE id = p_id_utrka;
+
+    SELECT vozac_bolid.id_vozac
+    INTO v_id_vozac
+    FROM rezultat 
+    JOIN vozac_bolid  ON rezultat.id_vozac_bolid = vozac_bolid.id
+    WHERE rezultat.id_utrka = p_id_utrka
+    ORDER BY rezultat.bodovi DESC
+    LIMIT 1;
+
+    IF v_id_vozac IS NOT NULL THEN
+        UPDATE poredak
+        SET pobjede = pobjede + 1
+        WHERE id_vozac = v_id_vozac
+          AND id_sezona = v_id_sezona;
+    END IF;
+
+END //
+
+DELIMITER ;
+CALL dodaj_pobjedu_pobjedniku(5);
+
+SELECT *
+FROM poredak;
+
+#########################################
+#PROCEDURA + TRANSAKCIJA
+#Napisati proceduru koja pri prelasku vozača u drugi tim, brišu mu bolid i dodaju novi
+DELIMITER //
+
+CREATE PROCEDURE transfer_vozaca (
+    IN p_vozac INT,
+    IN p_novi_tim INT,
+    IN p_novi_bolid INT,
+    IN p_sezona INT
+)
+BEGIN
+    START TRANSACTION;
+
+    UPDATE vozac
+    SET id_tim = p_novi_tim
+    WHERE id = p_vozac;
+
+    DELETE FROM vozac_bolid WHERE id_vozac = p_vozac;
+
+    INSERT INTO vozac_bolid(id_bolid, id_vozac, id_sezona)
+    VALUES (p_novi_bolid, p_vozac, p_sezona);
+
+    COMMIT;
+END //
+
+DELIMITER ;
+DROP PROCEDURE transfer_vozaca;
+SELECT * FROM vozac;
+CALL transfer_vozaca(10, 2, 2,1 );
+SELECT * FROM vozac_bolid;
+
+
+#########################################
+#PROCEDURA + TRANSAKCIJA
+#Napisati transakciju koja poništava plaćanja ako tim prekorači budžet.
+DELIMITER //
+
+CREATE PROCEDURE dodaj_trosak_timu (
+    IN p_tim INT,
+    IN p_sezona YEAR,
+    IN p_kategorija VARCHAR(100),
+    IN p_iznos DECIMAL(15,2)
+)
+BEGIN
+    DECLARE v_budzet DECIMAL(15,2);
+
+    START TRANSACTION;
+
+    SELECT budzet INTO v_budzet FROM tim WHERE id = p_tim FOR UPDATE;
+
+    IF v_budzet < p_iznos THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Nedovoljno stanje budžeta!';
+    ELSE
+        UPDATE tim
+        SET budzet = budzet - p_iznos
+        WHERE id = p_tim;
+
+        INSERT INTO trosak_tima(id_tim, sezona, kategorija, iznos)
+        VALUES (p_tim, p_sezona, p_kategorija, p_iznos);
+
+        COMMIT;
+    END IF;
+END //
+
+DELIMITER ;
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
