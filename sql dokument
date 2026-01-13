@@ -425,67 +425,47 @@ INSERT INTO kazna ( id_sudjelovanje, opis, tip_kazne, sekunde) VALUES
 (10,'Nepravilno startanje', 'Time Penalty', 5.0);
 
 
--- 1. Ubacujemo vozače s bodovima
-INSERT INTO poredak (id_vozac, id_sezona, id_kazna, mjesto, bodovi, pobjede, postolja)
-VALUES
-(1, 1, NULL,2,  175, 8, 0),   -- Verstappen
-(2, 1, NULL,8,  0, 0, 0),     -- Tsunoda
-(3, 1, NULL, 4,  25, 0, 0),    -- Leclerc
-(4, 1, NULL, 6, 8, 0, 0),     -- Hamilton
-(5, 1, NULL, 7, 8, 0, 0),     -- Antonelli
-(6, 1, NULL, 5,  25, 2, 0),    -- Russell
-(7, 1, NULL, 1, 187, 7, 0),   -- Norris
-(8, 1, NULL, 3, 116, 7, 0),   -- Piastri
-(9, 1, NULL, 9, 0, 0, 0),     -- Alonso
-(10, 1, NULL, 10, 0, 0, 0);    -- Stroll
 
--- 2. Ažuriramo mjesto po bodovima
-SET @mjesto := 0;
-UPDATE poredak
-SET mjesto = (@mjesto := @mjesto + 1)
-WHERE id_sezona = 1
-ORDER BY bodovi DESC;
 
-/*
+
 DELIMITER //
 
-CREATE PROCEDURE PopuniPoredakSezona(IN sezona_id INT)
+CREATE PROCEDURE izracunaj_poredak_sezone( IN p_sezona INT)
 BEGIN
-    DECLARE @mjesto INT DEFAULT 0;
+    START TRANSACTION;
+    DELETE FROM poredak
+    WHERE id_sezona = p_sezona;
 
-    -- Obriši postojeći poredak za tu sezonu
-    DELETE FROM poredak WHERE id_sezona = sezona_id;
-
-    -- Ubaci rezultate vozača sa sumom bodova, pobjeda i postolja
-    INSERT INTO poredak (id_vozac, id_sezona, id_kazna, bodovi, pobjede, postolja)
+    INSERT INTO poredak (id_vozac, id_sezona, bodovi, pobjede, postolja, mjesto)
     SELECT
-        zb.id_vozac AS id_vozac,
-        sez.id AS id_sezona,
-        k.id AS id_kazna,
-        COALESCE(SUM(r.bodovi),0) - COALESCE(SUM(k.sekunde),0) AS bodovi,
-        COALESCE(SUM(CASE WHEN r.bodovi = 25 THEN 1 ELSE 0 END),0) AS pobjede,
-        COALESCE(SUM(CASE WHEN r.bodovi >= 15 THEN 1 ELSE 0 END),0) AS postolja
-    FROM vozac_bolid zb
-    JOIN sezona sez ON zb.id_sezona = sez.id
-    LEFT JOIN sudjelovanje s ON s.id_vozac_bolid = zb.id
-    LEFT JOIN rezultat r ON r.id_sudjelovanje = s.id
-    LEFT JOIN kazna k ON k.id_sudjelovanje = s.id
-    WHERE sez.id = sezona_id
-    GROUP BY zb.id_vozac, sez.id, k.id
-    ORDER BY bodovi DESC;
+        t.id_vozac,
+        p_sezona,
+        t.bodovi,
+        t.pobjede,
+        t.postolja,
+        DENSE_RANK() OVER (ORDER BY t.bodovi DESC) AS mjesto
+    FROM (
+        SELECT
+            vozac_bolid.id_vozac,
+            SUM(rezultat.bodovi) AS bodovi,
+            SUM(CASE WHEN rezultat.bodovi = 25 THEN 1 ELSE 0 END) AS pobjede,
+            SUM(CASE WHEN rezultat.bodovi >= 15 THEN 1 ELSE 0 END) AS postolja
+        FROM vozac 
+        JOIN vozac_bolid on vozac.id=vozac_bolid.id_vozac
+        JOIN utrka ON utrka.id_sezona=p_sezona
+        LEFT JOIN rezultat ON rezultat.id_utrka=utrka.id AND rezultat.id_vozac_bolid=vozac_bolid.id
+        GROUP BY vozac.id
+    ) t;
 
-    -- Ažuriraj mjesto po redoslijedu bodova
-    SET @mjesto := 0;
-    UPDATE poredak
-    SET mjesto = (@mjesto := @mjesto + 1)
-    WHERE id_sezona = sezona_id
-    ORDER BY bodovi DESC;
+    COMMIT;
 END //
+
 DELIMITER ;
 
+#DROP PROCEDURE izracunaj_poredak_sezone;
+CALL izracunaj_poredak_sezone(1);
 
 
-*/
 
 INSERT INTO sponzor (naziv, drzava, tip) VALUES
 ('Oracle','USA','Tehnologija'),
