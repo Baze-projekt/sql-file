@@ -50,7 +50,7 @@ CREATE TABLE sezona ( #specifično 2025
 	id INT AUTO_INCREMENT PRIMARY KEY,
     godina INT NOT NULL,
 	datum_pocetka DATE,
-	datum_zavrsetka DATE,
+	datum_zavrsetka DATE
  );
 
 
