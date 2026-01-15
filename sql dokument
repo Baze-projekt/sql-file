@@ -48,9 +48,12 @@ CREATE TABLE vozac (
 
 CREATE TABLE sezona ( #specifično 2025
 	id INT AUTO_INCREMENT PRIMARY KEY,
-    godina INT NOT NULL
+    godina INT NOT NULL,
+	datum_pocetka DATE,
+	datum_zavrsetka DATE,
  );
- 
+
+
 CREATE TABLE vozac_bolid (
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	id_bolid INT NOT NULL,
@@ -280,8 +283,10 @@ INSERT INTO vozac (id_tim, sifra, ime, prezime, broj, drzava, datum_rodjenja) VA
 
 
 
-INSERT INTO sezona ( godina) VALUES
-( 2025);
+
+
+INSERT INTO sezona ( godina, datum_pocetka, datum_zavrsetka) VALUES
+( 2025, '2025-03-14', '2025-12-07');
 
 
 
