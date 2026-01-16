@@ -10,7 +10,7 @@ CREATE TABLE tim (
     vlasnik VARCHAR(100) NOT NULL,
     baza VARCHAR(100) NOT NULL,
 	drzava VARCHAR(50) NOT NULL,
-    budzet DECIMAL(15,2) NOT NULL DEFAULT 0
+    budzet DECIMAL(15,2) NOT NULL CHECK (budzet >= 0)
 );
 
 
@@ -139,7 +139,6 @@ CREATE TABLE strategija (
 );
 
 
-
 CREATE TABLE kazna (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_sudjelovanje INT NOT NULL,
@@ -147,7 +146,7 @@ CREATE TABLE kazna (
     tip_kazne VARCHAR(30) NOT NULL,
     sekunde DECIMAL(4,1) NOT NULL,
     CONSTRAINT chk_sek CHECK (sekunde >= 0),
-    CONSTRAINT chk_tip_kazne CHECK (tip_kazne in ('Time penalty', 'Drive-through penalty',
+    CONSTRAINT chk_tip_kazne CHECK (tip_kazne in ('Time Penalty', 'Drive-through penalty',
     'Stop-and-go penalty', 'Time added after race','Grid penalty',
     'Black flag', 'Disqualification', 'Warning', 'Penalty points' )),
     FOREIGN KEY (id_sudjelovanje) REFERENCES sudjelovanje(id)
@@ -431,44 +430,52 @@ INSERT INTO kazna ( id_sudjelovanje, opis, tip_kazne, sekunde) VALUES
 
 
 
+CREATE OR REPLACE VIEW view_poredak_sezone AS
+SELECT
+    vb.id_vozac,
+    u.id_sezona,
+    SUM(r.bodovi) AS bodovi,
+    SUM(CASE WHEN r.bodovi = 25 THEN 1 ELSE 0 END) AS pobjede,
+    SUM(CASE WHEN r.bodovi >= 15 THEN 1 ELSE 0 END) AS postolja,
+    DENSE_RANK() OVER (
+        PARTITION BY u.id_sezona
+        ORDER BY SUM(r.bodovi) DESC
+    ) AS mjesto
+FROM vozac_bolid vb
+JOIN rezultat r ON r.id_vozac_bolid = vb.id
+JOIN utrka u ON u.id = r.id_utrka
+GROUP BY vb.id_vozac, u.id_sezona;
 
 
 DELIMITER //
 
-CREATE PROCEDURE izracunaj_poredak_sezone( IN p_sezona INT)
+CREATE PROCEDURE izracunaj_poredak_sezone (IN p_sezona INT)
 BEGIN
     START TRANSACTION;
+
     DELETE FROM poredak
     WHERE id_sezona = p_sezona;
 
     INSERT INTO poredak (id_vozac, id_sezona, bodovi, pobjede, postolja, mjesto)
     SELECT
-        t.id_vozac,
-        p_sezona,
-        t.bodovi,
-        t.pobjede,
-        t.postolja,
-        DENSE_RANK() OVER (ORDER BY t.bodovi DESC) AS mjesto
-    FROM (
-        SELECT
-            vozac_bolid.id_vozac,
-            SUM(rezultat.bodovi) AS bodovi,
-            SUM(CASE WHEN rezultat.bodovi = 25 THEN 1 ELSE 0 END) AS pobjede,
-            SUM(CASE WHEN rezultat.bodovi >= 15 THEN 1 ELSE 0 END) AS postolja
-        FROM vozac 
-        JOIN vozac_bolid on vozac.id=vozac_bolid.id_vozac
-        JOIN utrka ON utrka.id_sezona=p_sezona
-        LEFT JOIN rezultat ON rezultat.id_utrka=utrka.id AND rezultat.id_vozac_bolid=vozac_bolid.id
-        GROUP BY vozac.id
-    ) t;
+        id_vozac,
+        id_sezona,
+        bodovi,
+        pobjede,
+        postolja,
+        mjesto
+    FROM view_poredak_sezone
+    WHERE id_sezona = p_sezona;
 
     COMMIT;
-END //
+END//
 
 DELIMITER ;
 
-#DROP PROCEDURE izracunaj_poredak_sezone;
+
+DROP PROCEDURE izracunaj_poredak_sezone;
 CALL izracunaj_poredak_sezone(1);
+SELECT * FROM view_poredak_sezone;
 
 
 
@@ -512,7 +519,7 @@ INSERT INTO trosak_tima ( id_tim, id_sezona, kategorija, iznos) VALUES
 
 
 
-#INDEX ??????
+
 -- rezultati jedne utrke
 SELECT * FROM rezultat WHERE id_utrka = 5;
 
@@ -584,7 +591,7 @@ BEGIN
 END //
 DELIMITER ;
 
-CALL najbrzi_vozac_tima_u_utrci(1, 5);
+CALL najbrzi_vozac_tima_u_utrci(1, 5); 
 -- ----------------------------------------
 # Okidač koji automatski dodaje bonus bodove za najbrži krug u utrci - M
 
@@ -592,20 +599,20 @@ DROP TRIGGER IF EXISTS dodaj_bonus_najbrzi_krug;
 
 DELIMITER //
 CREATE TRIGGER dodaj_bonus_najbrzi_krug
-AFTER INSERT ON rezultat
+BEFORE INSERT ON rezultat
 FOR EACH ROW
 BEGIN
     DECLARE min_vrijeme TIME;
-    SELECT MIN(vrijeme) 
+
+    SELECT MIN(vrijeme)
     INTO min_vrijeme
     FROM rezultat
     WHERE id_utrka = NEW.id_utrka;
-    IF NEW.vrijeme = min_vrijeme THEN
-        UPDATE rezultat
-        SET bodovi = bodovi + 1  
-        WHERE id = NEW.id;
+
+    IF min_vrijeme IS NULL OR NEW.vrijeme < min_vrijeme THEN
+        SET NEW.bodovi = NEW.bodovi + 1;
     END IF;
-END //
+END//
 DELIMITER ;
 
 -- ----------------------------------------------------
@@ -841,7 +848,7 @@ BEGIN
 END//
 DELIMITER ;
 
-----------------------------------------------------------------------------------------------------------------------------------
+-- --------------------------------------------------------------------------------------------------------------------------------
 
 --  NOVA TABLICA ZA LOGIRANJE --- S
 CREATE TEMPORARY TABLE sistemski_log (
@@ -854,7 +861,7 @@ CREATE TEMPORARY TABLE sistemski_log (
 
 -- TRIGGER: Prati promjene budžeta --- S
 DELIMITER //
-CREATE TRIGGER prati_budzet
+CREATE TRIGGER au_tim
 AFTER UPDATE ON tim
 FOR EACH ROW
 BEGIN
@@ -868,17 +875,13 @@ DELIMITER ;
 
 -- PROCEDURA: Dohvati sažetak sezone --- S
 -- Ovo vraća tablicu s izračunatim podacima
-DELIMITER //
-CREATE PROCEDURE DohvatiStatistiku()
-BEGIN
-    SELECT 
-        (SELECT COUNT(*) FROM tim) as broj_timova,
-        (SELECT COUNT(*) FROM vozac) as broj_vozaca,
-        (SELECT AVG(budzet) FROM tim) as prosjecni_budzet,
-        (SELECT naziv FROM tim ORDER BY budzet DESC LIMIT 1) as najbogatiji_tim;
-END;
-//
-DELIMITER ;
+CREATE OR REPLACE VIEW view_statistika AS
+SELECT
+    (SELECT COUNT(*) FROM tim) AS broj_timova,
+    (SELECT COUNT(*) FROM vozac) AS broj_vozaca,
+    (SELECT AVG(budzet) FROM tim) AS prosjecni_budzet,
+    (SELECT naziv FROM tim ORDER BY budzet DESC LIMIT 1) AS najbogatiji_tim;
+
 
 -- POSTAVKE SIGURNOSTI I LOGINA --- S 
 
@@ -981,10 +984,24 @@ SELECT v.ime, v.prezime
 FROM vozac v
 WHERE v.id = najbolji_vozac_po_nastupima(1);
 
+CREATE OR REPLACE VIEW view_bodovi_vozaca AS
+SELECT
+    vb.id_vozac,
+    u.id_sezona,
+    COUNT(r.id) * 10 + COUNT(r.vrijeme) * 15 AS bodovi
+FROM vozac_bolid vb
+JOIN rezultat r ON r.id_vozac_bolid = vb.id
+JOIN utrka u ON u.id = r.id_utrka
+GROUP BY vb.id_vozac, u.id_sezona;
+
+SELECT * FROM view_bodovi_vozaca;
 
 
 -- najbolji vozac u timu
+DROP FUNCTION IF EXISTS najbolji_vozac_u_timu;
+
 DELIMITER //
+
 CREATE FUNCTION najbolji_vozac_u_timu(
     p_id_tim INT,
     p_id_sezona INT
@@ -993,17 +1010,21 @@ RETURNS INT
 DETERMINISTIC
 BEGIN
     DECLARE vozac_id INT;
-    SELECT vb.id_vozac
+
+    SELECT vbv.id_vozac
     INTO vozac_id
-    FROM view_bodovi_vozaca vb
-    JOIN vozac v ON v.id = vb.id_vozac
+    FROM view_bodovi_vozaca vbv
+    JOIN vozac v ON v.id = vbv.id_vozac
     WHERE v.id_tim = p_id_tim
-      AND vb.id_sezona = p_id_sezona
-    ORDER BY vb.bodovi DESC
+      AND vbv.id_sezona = p_id_sezona
+    ORDER BY vbv.bodovi DESC
     LIMIT 1;
+
     RETURN vozac_id;
-END //
+END//
+
 DELIMITER ;
+
 
 
 SELECT CONCAT(v.ime, ' ', v.prezime) AS najbolji_vozac
@@ -1033,18 +1054,18 @@ select * from view_statistika_timova;
 
 
 #2 
-
-CREATE OR REPLACE VIEW view_bodovi_vozaca AS
+CREATE OR REPLACE VIEW view_bodovi_timova AS
 SELECT
-    vb.id_vozac,
-    u.id_sezona,
-    COUNT(r.id) * 10 + COUNT(r.vrijeme) * 15 AS bodovi
-FROM vozac_bolid vb
-JOIN rezultat r ON r.id_vozac_bolid = vb.id
-JOIN utrka u ON u.id = r.id_utrka
-GROUP BY vb.id_vozac, u.id_sezona;
+    t.id AS id_tim,
+    t.naziv AS tim,
+    SUM(p.bodovi) AS ukupni_bodovi
+FROM poredak p
+JOIN vozac v ON v.id = p.id_vozac
+JOIN tim t ON t.id = v.id_tim
+GROUP BY t.id, t.naziv;
 
-SELECT * FROM view_bodovi_vozaca;
+select * from view_bodovi_timova;
+
 
 
 #3 
@@ -1065,21 +1086,6 @@ select * from view_najbrzi_vozaci;
 
 #4
 
-CREATE OR REPLACE VIEW view_bodovi_timova AS
-SELECT
-    t.id AS id_tim,
-    t.naziv AS tim,
-    SUM(p.bodovi) AS ukupni_bodovi
-FROM poredak p
-JOIN vozac v ON v.id = p.id_vozac
-JOIN tim t ON t.id = v.id_tim
-GROUP BY t.id, t.naziv;
-
-select * from view_bodovi_timova;
-
-
-#5 
-
 CREATE OR REPLACE VIEW view_broj_utrka_sezona AS
 SELECT
     s.godina,
@@ -1097,40 +1103,41 @@ select * from view_broj_utrka_sezona;
 -- dodavanje utrke
 DELIMITER //
 
-CREATE PROCEDURE dodaj_utrku(
+CREATE PROCEDURE dodaj_utrku (
     p_naziv VARCHAR(100),
-    p_id_staza INT,
+    p_datum DATE,
     p_id_sezona INT,
-    p_datum DATE
+    p_id_staza INT
 )
 BEGIN
-    INSERT INTO utrka (naziv, id_staza, id_sezona, datum)
-    VALUES (p_naziv, p_id_staza, p_id_sezona, p_datum);
+    INSERT INTO utrka (naziv, datum, id_sezona, id_staza)
+    VALUES (p_naziv, p_datum, p_id_sezona, p_id_staza);
 END//
 
 DELIMITER ;
 
-CALL dodaj_utrku('Test GP', 1, 1, NULL);
 
+CALL dodaj_utrku('Najjaca utrka', '2025-12-15', 1, 1);
 select * from utrka;
 
 -- starost vozaca
 
-DELIMITER //
+CREATE OR REPLACE VIEW view_prosjecna_starost_timova AS
+SELECT
+    t.id AS id_tim,
+    t.naziv AS tim,
+    ROUND(AVG(TIMESTAMPDIFF(YEAR, v.datum_rodjenja, CURDATE())),2) AS prosjecna_starost
+FROM tim t
+JOIN vozac v ON v.id_tim = t.id
+GROUP BY t.id, t.naziv;
 
-CREATE PROCEDURE prosjecna_starost_vozaca_tima(
-    p_id_tim INT
-)
-BEGIN
-    SELECT 
-        t.naziv AS tim,
-        ROUND(AVG(TIMESTAMPDIFF(YEAR, v.datum_rodjenja, CURDATE())),2) AS prosjecna_starost
-    FROM tim t 
-    JOIN vozac v ON v.id_tim = t.id
-    WHERE t.id = p_id_tim;
-END//
+SELECT tim, prosjecna_starost
+FROM view_prosjecna_starost_timova
+WHERE id_tim = 1;
 
-DELIMITER ;
+
+
+
 -- ---------------------------------------------------------------------------------------------------------------------
 
 #Nikolina
@@ -1301,7 +1308,8 @@ END //
 
 DELIMITER ;
 
---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -1506,60 +1514,49 @@ SELECT postotak_sprint_utrka_vozaca(8, 1) AS postotak_sprint_utrka;
 
 
 
--- 7) PROCEDURA: Vozači po najvećim brojem kaznenih bodova u sezoni
-
-DROP PROCEDURE IF EXISTS top_vozaci_po_kaznama;
-
-DELIMITER //
-
-CREATE PROCEDURE top_vozaci_po_kaznama(IN p_id_sezona INT, IN p_limit INT)
-BEGIN
-    SELECT
-        vozac.id,
-        vozac.ime,
-        vozac.prezime,
-        tim.naziv AS tim,
-        COUNT(kazna.id) AS broj_kazni,
-        IFNULL(SUM(kazna.sekunde),0) AS ukupno_sekundi
-    FROM vozac
-    JOIN tim ON tim.id = vozac.id_tim
-    JOIN vozac_bolid ON vozac_bolid.id_vozac = vozac.id
-    JOIN sudjelovanje ON sudjelovanje.id_vozac_bolid = vozac_bolid.id
-    JOIN utrka ON utrka.id = sudjelovanje.id_utrka
-    LEFT JOIN kazna ON kazna.id_sudjelovanje = sudjelovanje.id
-    WHERE utrka.id_sezona = p_id_sezona
-    GROUP BY vozac.id, tim.naziv
-    ORDER BY broj_kazni DESC, ukupno_sekundi DESC
-    LIMIT p_limit;
-END//
-
-DELIMITER ;
-
-CALL top_vozaci_po_kaznama(1, 3);
+-- 7) VIEW: Vozači po najvećim brojem kaznenih bodova u sezoni
 
 
 
--- 8) PROCEDURA: sezona u državama (broj utrka u državi)
+CREATE OR REPLACE VIEW view_top_vozaci_po_kaznama AS
+SELECT
+    vozac.id AS id_vozac,
+    vozac.ime,
+    vozac.prezime,
+    tim.naziv AS tim,
+    COUNT(kazna.id) AS broj_kazni,
+    IFNULL(SUM(kazna.sekunde),0) AS ukupno_sekundi,
+    utrka.id_sezona
+FROM vozac
+JOIN tim ON tim.id = vozac.id_tim
+JOIN vozac_bolid ON vozac_bolid.id_vozac = vozac.id
+JOIN sudjelovanje ON sudjelovanje.id_vozac_bolid = vozac_bolid.id
+JOIN utrka ON utrka.id = sudjelovanje.id_utrka
+LEFT JOIN kazna ON kazna.id_sudjelovanje = sudjelovanje.id
+GROUP BY vozac.id, tim.naziv, utrka.id_sezona;
 
-DROP PROCEDURE IF EXISTS sezona_u_drzavama;
+SELECT *
+FROM view_top_vozaci_po_kaznama
+WHERE id_sezona = 1
+ORDER BY broj_kazni DESC, ukupno_sekundi DESC
+LIMIT 3;
 
-DELIMITER //
 
-CREATE PROCEDURE sezona_u_drzavama(IN p_id_sezona INT)
-BEGIN
-    SELECT
-        staza.drzava,
-        COUNT(utrka.id) AS broj_utrka
-    FROM utrka
-    JOIN staza ON staza.id = utrka.id_staza
-    WHERE utrka.id_sezona = p_id_sezona
-    GROUP BY staza.drzava
-    ORDER BY broj_utrka DESC, staza.drzava;
-END//
+-- 8) VIEW: sezona u državama (broj utrka u državi)
 
-DELIMITER ;
+CREATE OR REPLACE VIEW view_sezona_u_drzavama AS
+SELECT
+    u.id_sezona,
+    s.drzava,
+    COUNT(u.id) AS broj_utrka
+FROM utrka u
+JOIN staza s ON s.id = u.id_staza
+GROUP BY u.id_sezona, s.drzava;
 
-CALL sezona_u_drzavama(1);
+SELECT drzava, broj_utrka
+FROM view_sezona_u_drzavama
+WHERE id_sezona = 1
+ORDER BY broj_utrka DESC, drzava;
 
 
 
@@ -1568,5 +1565,3 @@ CALL sezona_u_drzavama(1);
 
 
 
-
-ča nebi ona 879 linija trebala doc na kraj? ili je svejeno?
