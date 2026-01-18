@@ -581,54 +581,72 @@ SELECT bodovi_vozaca_sezona(7, 1);
 
 
 -- ---------------------------------------------------------
-#Procedura za automatsko izračunavanje najbržeg vozača po timu u utrci - M
+#Pogled za izračunavanje najbržeg vozača po timu u utrci - M
+ DROP VIEW IF EXISTS najbrzi_vozac_tima_u_utrci;
 
-DROP PROCEDURE IF EXISTS najbrzi_vozac_tima_u_utrci;
+CREATE VIEW najbrzi_vozac_tima_u_utrci AS
+SELECT
+    tim.id AS id_tim,
+    rezultat.id_utrka,
+    vozac.id AS vozac_id,
+    vozac.ime,
+    vozac.prezime,
+    rezultat.vrijeme AS najbolje_vrijeme
+FROM rezultat
+JOIN vozac_bolid ON rezultat.id_vozac_bolid = vozac_bolid.id
+JOIN vozac ON vozac_bolid.id_vozac = vozac.id
+JOIN tim ON vozac.id_tim = tim.id
+WHERE (rezultat.id_utrka, tim.id, rezultat.vrijeme) IN (
+    SELECT
+        r.id_utrka,
+        t.id,
+        MIN(r.vrijeme)
+    FROM rezultat r
+    JOIN vozac_bolid vb ON r.id_vozac_bolid = vb.id
+    JOIN vozac v ON vb.id_vozac = v.id
+    JOIN tim t ON v.id_tim = t.id
+    GROUP BY r.id_utrka, t.id
+);
+
+SELECT *
+FROM najbrzi_vozac_tima_u_utrci
+WHERE id_tim = 1
+  AND id_utrka = 5;
+-- ----------------------------------------
+#Procedura za nazive staza u sezoni
+
+DROP PROCEDURE IF EXISTS imena_staza_u_sezoni;
 
 DELIMITER //
-CREATE PROCEDURE najbrzi_vozac_tima_u_utrci(IN p_id_tim INT,IN p_id_utrka INT)
+CREATE PROCEDURE imena_staza_u_sezoni (
+    IN p_id_sezona INT,
+    OUT p_staze VARCHAR(4000)
+)
 BEGIN
-    SELECT vozac.id AS vozac_id,
-           vozac.ime AS ime,
-           vozac.prezime AS prezime,
-           rezultat.vrijeme AS najbolje_vrijeme
-    FROM rezultat
-    JOIN vozac_bolid ON rezultat.id_vozac_bolid = vozac_bolid.id
-    JOIN vozac ON vozac_bolid.id_vozac = vozac.id
-    JOIN tim ON vozac.id_tim = tim.id
-    WHERE tim.id = p_id_tim
-      AND rezultat.id_utrka = p_id_utrka
-    ORDER BY rezultat.vrijeme ASC
-    LIMIT 1;
-END //
+    DECLARE v_naziv VARCHAR(100);
+    DECLARE gotovo INT DEFAULT 0;
+    DECLARE cur CURSOR FOR
+        SELECT DISTINCT staza.naziv
+        FROM utrka
+        JOIN staza ON staza.id = utrka.id_staza
+        WHERE utrka.id_sezona = p_id_sezona;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND
+        SET gotovo=1;
+    SET p_staze='';
+    OPEN cur;
+    petlja: LOOP
+        FETCH cur INTO v_naziv;
+        IF gotovo = 1 THEN
+            LEAVE petlja;
+        END IF;
+        SET p_staze = CONCAT(v_naziv,';',p_staze);
+    END LOOP petlja;
+    CLOSE cur;
+END//
 DELIMITER ;
 
-CALL najbrzi_vozac_tima_u_utrci(1, 5); 
--- ----------------------------------------
-# Okidač koji automatski dodaje bonus bodove za najbrži krug u utrci - M
-# Bodovi se već računaju preko view_poredak_sezone, izracunaj_poredak_sezone
-
-
--- DROP TRIGGER IF EXISTS dodaj_bonus_najbrzi_krug;
-
--- DELIMITER //
--- CREATE TRIGGER dodaj_bonus_najbrzi_krug
--- BEFORE INSERT ON rezultat
--- FOR EACH ROW
--- BEGIN
---     DECLARE min_vrijeme TIME;
-
---     SELECT MIN(vrijeme)
---     INTO min_vrijeme
---     FROM rezultat
---     WHERE id_utrka = NEW.id_utrka;
-
---     IF min_vrijeme IS NULL OR NEW.vrijeme < min_vrijeme THEN
---         SET NEW.bodovi = NEW.bodovi + 1;
---     END IF;
--- END//
--- DELIMITER ;
-
+CALL imena_staza_u_sezoni(1, @staze);
+SELECT @staze;
 -- ----------------------------------------------------
 #Vozači koji su osvojili bodove u više od jedne utrke u sezoni i njihov prosjek bodova po utrci - M
 
