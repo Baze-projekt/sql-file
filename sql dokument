@@ -51,6 +51,7 @@ CREATE TABLE sezona ( #specifično 2025
     godina INT NOT NULL,
 	datum_pocetka DATE,
 	datum_zavrsetka DATE
+  CONSTRAINT chk_datumi CHECK (datum_pocetka <= datum_zavrsetka)
  );
 
 
