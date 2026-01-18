@@ -50,8 +50,8 @@ CREATE TABLE sezona ( #specifično 2025
 	id INT AUTO_INCREMENT PRIMARY KEY,
     godina INT NOT NULL,
 	datum_pocetka DATE,
-	datum_zavrsetka DATE
-  CONSTRAINT chk_datumi CHECK (datum_pocetka <= datum_zavrsetka)
+	datum_zavrsetka DATE,
+	CONSTRAINT chk_datumi CHECK (datum_pocetka <= datum_zavrsetka)
  );
 
 
@@ -1131,6 +1131,30 @@ GROUP BY s.godina;
 select * from view_broj_utrka_sezona;
 
 
+#5
+
+CREATE OR REPLACE VIEW view_prosjecna_starost_timova AS
+SELECT
+    t.id AS id_tim,
+    t.naziv AS tim,
+    ROUND(AVG(TIMESTAMPDIFF(YEAR, v.datum_rodjenja, CURDATE())),2) AS prosjecna_starost
+FROM tim t
+JOIN vozac v ON v.id_tim = t.id
+GROUP BY t.id, t.naziv;
+
+SELECT tim, prosjecna_starost
+FROM view_prosjecna_starost_timova
+WHERE id_tim = 1;
+
+
+#6
+CREATE OR REPLACE VIEW view_trosak_tima AS
+SELECT id_tim, id_sezona, SUM(iznos) AS ukupni_trosak
+FROM trosak_tima
+GROUP BY id_tim, id_sezona;
+
+
+
 ----------------------------------------------------------------------------------- PROCEDURE -----------------------------------------------------------------------------
 
 -- dodavanje utrke
@@ -1150,23 +1174,47 @@ END//
 DELIMITER ;
 
 
-CALL dodaj_utrku('Najjaca utrka', '2025-12-15', 1, 1);
-select * from utrka;
+DELIMITER //
 
--- starost vozaca
+CREATE PROCEDURE dodaj_utrku (
+    p_naziv VARCHAR(100),
+    p_datum DATE,
+    p_id_sezona INT,
+    p_id_staza INT
+)
+BEGIN
+    INSERT INTO utrka (naziv, datum, id_sezona, id_staza)
+    VALUES (p_naziv, p_datum, p_id_sezona, p_id_staza);
+END//
 
-CREATE OR REPLACE VIEW view_prosjecna_starost_timova AS
-SELECT
-    t.id AS id_tim,
-    t.naziv AS tim,
-    ROUND(AVG(TIMESTAMPDIFF(YEAR, v.datum_rodjenja, CURDATE())),2) AS prosjecna_starost
-FROM tim t
-JOIN vozac v ON v.id_tim = t.id
-GROUP BY t.id, t.naziv;
+DELIMITER ;
 
-SELECT tim, prosjecna_starost
-FROM view_prosjecna_starost_timova
-WHERE id_tim = 1;
+
+DELIMITER //
+
+CREATE TRIGGER bi_utrka_datum
+BEFORE INSERT ON utrka
+FOR EACH ROW
+BEGIN
+    IF NEW.datum < (
+        SELECT datum_pocetka
+        FROM sezona
+        WHERE id = NEW.id_sezona
+    )
+    OR NEW.datum > (
+        SELECT datum_zavrsetka
+        FROM sezona
+        WHERE id = NEW.id_sezona
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Datum utrke mora biti unutar trajanja sezone';
+    END IF;
+END//
+
+DELIMITER ;
+
+INSERT INTO utrka (naziv, datum, id_sezona, id_staza)
+VALUES ('Najjaca utrka V2', '2025-02-15', 1, 1);
 
 
 
@@ -1609,13 +1657,4 @@ SELECT drzava, broj_utrka
 FROM view_sezona_u_drzavama
 WHERE id_sezona = 1
 ORDER BY broj_utrka DESC, drzava;
-
-
-
-
-
-
-
-
-
 
