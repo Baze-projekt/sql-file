@@ -520,16 +520,6 @@ INSERT INTO trosak_tima ( id_tim, id_sezona, kategorija, iznos) VALUES
 ( 5, 1, 'Plaće osoblja', 70000000);
 
 
-CREATE INDEX idx_strategija_sudjelovanje
-ON strategija (id_sudjelovanje);
-
-CREATE INDEX idx_sudjelovanje_utrka
-ON sudjelovanje (id_utrka);
-
-CREATE INDEX idx_sudjelovanje_vozac_bolid
-ON sudjelovanje (id_vozac_bolid);
-
-
 
 
 
