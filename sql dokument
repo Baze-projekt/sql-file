@@ -1645,31 +1645,44 @@ SELECT postotak_sprint_utrka_vozaca(8, 1) AS postotak_sprint_utrka;
 -- 9) PROCEDURA: Prosječna kazna po utrci za tim po sezoni
 
 DROP PROCEDURE IF EXISTS prosjek_kazni_tima;
+
 DELIMITER //
 
 CREATE PROCEDURE prosjek_kazni_tima(
     IN p_id_tim INT,
-    IN p_id_sezona INT
+    IN p_id_sezona INT,
+    OUT p_broj_utrka INT,
+    OUT p_ukupne_kazne DECIMAL(10,2),
+    OUT p_prosjek DECIMAL(8,2)
 )
 BEGIN
-    SELECT
-        tim.naziv AS tim, sezona.godina AS sezona, COUNT(DISTINCT utrka.id) AS broj_utrka,
-        IFNULL(SUM(kazna.sekunde), 0) AS ukupne_kazne,
-        ROUND(
-            IFNULL(SUM(kazna.sekunde), 0) / COUNT(DISTINCT utrka.id),
-            2
-        ) AS prosjek_kazne_po_utrci
+    SELECT 
+        COUNT(DISTINCT utrka.id),
+        IFNULL(SUM(kazna.sekunde), 0)
+    INTO 
+        p_broj_utrka,
+        p_ukupne_kazne
     FROM tim
-		JOIN vozac ON vozac.id_tim = tim.id
-		JOIN vozac_bolid ON vozac_bolid.id_vozac = vozac.id
-		JOIN sudjelovanje ON sudjelovanje.id_vozac_bolid = vozac_bolid.id
-		JOIN utrka ON utrka.id = sudjelovanje.id_utrka
-		JOIN sezona ON sezona.id = utrka.id_sezona
-		LEFT JOIN kazna ON kazna.id_sudjelovanje = sudjelovanje.id
-    WHERE tim.id = p_id_tim AND sezona.id = p_id_sezona
-    GROUP BY tim.id, sezona.id;
+        JOIN vozac ON vozac.id_tim = tim.id
+        JOIN vozac_bolid ON vozac_bolid.id_vozac = vozac.id
+        JOIN sudjelovanje ON sudjelovanje.id_vozac_bolid = vozac_bolid.id
+        JOIN utrka ON utrka.id = sudjelovanje.id_utrka
+        LEFT JOIN kazna ON kazna.id_sudjelovanje = sudjelovanje.id
+    WHERE tim.id = p_id_tim
+      AND utrka.id_sezona = p_id_sezona;
+
+    IF p_broj_utrka = 0 THEN
+        SET p_prosjek = 0;
+    ELSE
+        SET p_prosjek = ROUND(p_ukupne_kazne / p_broj_utrka, 2);
+    END IF;
 END//
 
 DELIMITER ;
 
-CALL prosjek_kazni_tima(3, 1);
+CALL prosjek_kazni_tima(3, 1, @utrke, @kazne, @prosjek);
+
+SELECT @utrke AS broj_utrka,
+       @kazne AS ukupne_kazne,
+       @prosjek AS prosjek_kazne_po_utrci;
+
