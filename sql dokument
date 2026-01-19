@@ -46,6 +46,7 @@ CREATE TABLE vozac (
     CONSTRAINT uniq_sifra_prezime UNIQUE (sifra, prezime)
 );
 
+
 CREATE TABLE sezona ( #specifično 2025
 	id INT AUTO_INCREMENT PRIMARY KEY,
     godina INT NOT NULL,
@@ -70,6 +71,8 @@ CREATE TABLE vozac_bolid (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
+
+
 CREATE TABLE staza (
     id INT AUTO_INCREMENT PRIMARY KEY,
     naziv VARCHAR(100) NOT NULL UNIQUE,
@@ -95,6 +98,8 @@ CREATE TABLE utrka (
         ON UPDATE CASCADE
 	
 );
+
+
 CREATE TABLE sudjelovanje (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_utrka INT NOT NULL,
@@ -125,7 +130,6 @@ CREATE TABLE rezultat (
 );
 
 
-
 CREATE TABLE strategija (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_sudjelovanje INT NOT NULL,
@@ -153,6 +157,7 @@ CREATE TABLE kazna (
         ON UPDATE CASCADE
 );
 
+
 CREATE TABLE poredak (
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	id_vozac INT NOT NULL,
@@ -174,13 +179,13 @@ CREATE TABLE poredak (
         ON UPDATE CASCADE
 );
 
+
 CREATE TABLE sponzor (
     id INT AUTO_INCREMENT PRIMARY KEY,
     naziv VARCHAR(100) NOT NULL,
     drzava VARCHAR(50) NOT NULL,
     tip VARCHAR(100)
 );
-
 
 
 CREATE TABLE ugovor (
@@ -198,7 +203,6 @@ CREATE TABLE ugovor (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
-
 
 
 CREATE TABLE osoblje (
@@ -227,7 +231,6 @@ CREATE TABLE zaduzenje (
 );
 
 
-
 CREATE TABLE trosak_tima (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_tim INT NOT NULL,
@@ -254,13 +257,13 @@ INSERT INTO tim ( naziv, vlasnik, baza, drzava, budzet) VALUES
 
 
 
-
 INSERT INTO bolid ( id_tim, model, godina, motor, sasija) VALUES
 ( 1, 'RB20', 2024, 'Honda RBPT', 'RB20-Chassis'),
 ( 2, 'SF-24', 2024, 'Ferrari 066/10', 'SF24-Chassis'),
 ( 3, 'W15', 2024, 'Mercedes M15', 'W15-Chassis'),
 ( 4, 'MCL38', 2024, 'Mercedes M14', 'MCL38-Chassis'),
 ( 5, 'AMR24', 2024, 'Mercedes M14', 'AMR24-Chassis');
+
 
 
 INSERT INTO vozac (id_tim, sifra, ime, prezime, broj, drzava, datum_rodjenja) VALUES
@@ -281,8 +284,6 @@ INSERT INTO vozac (id_tim, sifra, ime, prezime, broj, drzava, datum_rodjenja) VA
 
 
 
-
-
 INSERT INTO sezona ( godina, datum_pocetka, datum_zavrsetka) VALUES
 ( 2025, '2025-03-14', '2025-12-07');
 
@@ -294,8 +295,6 @@ INSERT INTO vozac_bolid (id_bolid, id_vozac, id_sezona) VALUES
 (3, 5, 1),(3, 6,1),
 (4, 7, 1),(4, 8, 1),
 (5, 9, 1),(5, 10, 1);
-
-
 
 
 
@@ -355,9 +354,10 @@ INSERT INTO utrka (naziv, id_staza, id_sezona, datum) VALUES
 
 
 
-
 ALTER TABLE utrka
 ADD status ENUM('Najavljena','Traje','Zavrsena') DEFAULT 'Najavljena';
+
+
 
 INSERT INTO sudjelovanje (id_utrka, id_vozac_bolid) VALUES
 
@@ -415,13 +415,14 @@ INSERT INTO rezultat (id_utrka, id_vozac_bolid, vrijeme, bodovi) VALUES
 
 
 
-
 INSERT INTO strategija ( id_sudjelovanje, broj_ulazaka_boks, tipovi_guma) VALUES
 ( 1, 2, 'Soft-Medium'),
 ( 2, 2, 'Soft-Medium'),
 (3, 1, 'Medium-Hard'),
 ( 4, 2, 'Soft-Hard'),
 (5, 3, 'Soft-Soft-Medium');
+
+
 
 INSERT INTO kazna ( id_sudjelovanje, opis, tip_kazne, sekunde) VALUES
 ( 2, 'Prebrzo u boksu', 'Time Penalty', 5.0),
@@ -447,6 +448,7 @@ FROM vozac_bolid vb
 JOIN rezultat r ON r.id_vozac_bolid = vb.id
 JOIN utrka u ON u.id = r.id_utrka
 GROUP BY vb.id_vozac, u.id_sezona;
+
 
 
 DELIMITER //
@@ -475,6 +477,7 @@ END//
 DELIMITER ;
 
 
+
 DROP PROCEDURE izracunaj_poredak_sezone;
 CALL izracunaj_poredak_sezone(1);
 SELECT * FROM view_poredak_sezone;
@@ -489,12 +492,14 @@ INSERT INTO sponzor (naziv, drzava, tip) VALUES
 ('Aramco','Saudi Arabia','Nafta');
 
 
+
 INSERT INTO ugovor (id_tim, id_sponzor, godina_od, godina_do, vrijednost) VALUES
 (1,1,2022,2026,150000000),
 (2,2,2021,2025,120000000),
 (3,3,2020,2024,140000000),
 (4,4,2023,2025,80000000),
 (5,5,2022,2026,90000000);
+
 
 
 INSERT INTO osoblje (id_tim, ime, prezime, uloga) VALUES
@@ -504,12 +509,15 @@ INSERT INTO osoblje (id_tim, ime, prezime, uloga) VALUES
 (4, 'Peter', 'Prodromou', 'Technical Director'),
 (5, 'Dan', 'Fallows', 'Technical Director');
 
+
+
 INSERT INTO zaduzenje ( id_osoblje, id_utrka, opis) VALUES
 ( 1, 1, 'Setup bolida'),
 ( 2, 2, 'Strategija utrke'),
 ( 3, 3, 'Operativno vodstvo'),
 (4, 1, 'Aerodinamički razvoj'),
 (5, 2, 'Operativno vodstvo');
+
 
 
 INSERT INTO trosak_tima ( id_tim, id_sezona, kategorija, iznos) VALUES
@@ -523,6 +531,7 @@ INSERT INTO trosak_tima ( id_tim, id_sezona, kategorija, iznos) VALUES
 
 
 
+-- --------------------------------------------------------- #NIKOLINA
 -- rezultati jedne utrke
 SELECT * FROM rezultat WHERE id_utrka = 5;
 
@@ -535,8 +544,6 @@ FROM rezultat r
 JOIN utrka u ON r.id_utrka = u.id
 WHERE u.id_sezona = 1
   AND r.id_vozac_bolid = 8;
-CREATE INDEX idx_rezultat_utrka
-ON rezultat (id_utrka);
 
 CREATE INDEX idx_rezultat_vozac
 ON rezultat (id_vozac_bolid);
@@ -544,9 +551,10 @@ ON rezultat (id_vozac_bolid);
 CREATE INDEX idx_rezultat_utrka_vozac
 ON rezultat (id_utrka, id_vozac_bolid);
 
-show index from rezultat;
 
--- ------------------------------------------------------------
+SHOW INDEX IN rezultat;
+
+-- ---------------------------------------------------------
 #Funkcija koja računa ukupne bodove vozača u jednoj sezoni - M
 
 DROP FUNCTION IF EXISTS bodovi_vozaca_sezona;
@@ -573,7 +581,7 @@ SELECT bodovi_vozaca_sezona(7, 1);
 
 -- ---------------------------------------------------------
 #Pogled za izračunavanje najbržeg vozača po timu u utrci - M
- DROP VIEW IF EXISTS najbrzi_vozac_tima_u_utrci;
+DROP VIEW IF EXISTS najbrzi_vozac_tima_u_utrci;
 
 CREATE VIEW najbrzi_vozac_tima_u_utrci AS
 SELECT
@@ -603,42 +611,58 @@ SELECT *
 FROM najbrzi_vozac_tima_u_utrci
 WHERE id_tim = 1
   AND id_utrka = 5;
--- ----------------------------------------
-#Procedura za nazive staza u sezoni
+  
+-- ---------------------------------------------------------
+#Procedura za nazive staza u sezoni -M
 
 DROP PROCEDURE IF EXISTS imena_staza_u_sezoni;
-
 DELIMITER //
+
 CREATE PROCEDURE imena_staza_u_sezoni (
     IN p_id_sezona INT,
-    OUT p_staze VARCHAR(4000)
+    OUT p_staze TEXT
 )
 BEGIN
     DECLARE v_naziv VARCHAR(100);
-    DECLARE gotovo INT DEFAULT 0;
-    DECLARE cur CURSOR FOR
-        SELECT DISTINCT staza.naziv
-        FROM utrka
-        JOIN staza ON staza.id = utrka.id_staza
-        WHERE utrka.id_sezona = p_id_sezona;
+    DECLARE gotovo BOOLEAN DEFAULT FALSE;
+
+    DECLARE cur_staze CURSOR FOR
+        SELECT DISTINCT s.naziv
+        FROM utrka u
+        JOIN staza s ON s.id = u.id_staza
+        WHERE u.id_sezona = p_id_sezona
+        ORDER BY s.naziv;
+
     DECLARE CONTINUE HANDLER FOR NOT FOUND
-        SET gotovo=1;
-    SET p_staze='';
-    OPEN cur;
+        SET gotovo = TRUE;
+
+    SET p_staze = '';
+    OPEN cur_staze;
+
     petlja: LOOP
-        FETCH cur INTO v_naziv;
-        IF gotovo = 1 THEN
+        FETCH cur_staze INTO v_naziv;
+
+        IF gotovo THEN
             LEAVE petlja;
         END IF;
-        SET p_staze = CONCAT(v_naziv,';',p_staze);
-    END LOOP petlja;
-    CLOSE cur;
+
+        IF p_staze = '' THEN
+            SET p_staze = v_naziv;
+        ELSE
+            SET p_staze = CONCAT(p_staze, '; ', v_naziv);
+        END IF;
+    END LOOP;
+
+    CLOSE cur_staze;
 END//
+
 DELIMITER ;
 
 CALL imena_staza_u_sezoni(1, @staze);
 SELECT @staze;
--- ----------------------------------------------------
+
+
+-- ---------------------------------------------------------
 #Vozači koji su osvojili bodove u više od jedne utrke u sezoni i njihov prosjek bodova po utrci - M
 
 SELECT 
@@ -660,7 +684,7 @@ GROUP BY vozac.id, sezona.id
 HAVING COUNT(rezultat.id) > 1
 ORDER BY prosjek_bodova DESC;
 
--- --------------------------------------------------------------
+-- ---------------------------------------------------------
 # Pogled: Statistika vozača po sezoni - M
 
 DROP VIEW IF EXISTS statistika_vozaca_po_sezoni;
@@ -720,7 +744,7 @@ BEGIN
 END// 
 DELIMITER ;
 
--- --------------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 -- automatski dodaje kaznu na vrijeme -- L
 DELIMITER //
 CREATE TRIGGER ai_vrijeme
@@ -742,7 +766,7 @@ BEGIN
 END//
 DELIMITER ;
 
--- --------------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 -- automatski dodaje bodove vozacima u prvih 10, pobjede i podiume -- L
 DELIMITER //
 CREATE TRIGGER au_poredak
@@ -828,7 +852,7 @@ BEGIN
 END//
 DELIMITER ;
 
--- --------------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 -- smanjuje budžet nakon troškova i sprječava prelazak tog budžeta -- L
 DELIMITER //
 CREATE TRIGGER bi_trosak
@@ -855,7 +879,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- --------------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 -- ne dopušta insert mlađir od 18 -- L
 DELIMITER //
 CREATE TRIGGER bi_datum_rodenja
@@ -871,7 +895,7 @@ BEGIN
 END//
 DELIMITER ;
 
--- --------------------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 
 --  NOVA TABLICA ZA LOGIRANJE --- S
 CREATE TEMPORARY TABLE sistemski_log (
@@ -930,13 +954,12 @@ GRANT ALL PRIVILEGES ON formula.* TO 'f1_admin'@'%';
 GRANT SELECT ON formula.* TO 'f1_viewer'@'%';
 FLUSH PRIVILEGES;
 
--------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 
 
-#MILA
+#MILA -- ---------------------------------------------------------
 
--------------------------------------------------------------- FUNKCIJE: -----------------------------------------------------------
--- pretvori brzinu u mph
+-- pretvori brzinu u mph 
 DELIMITER //
 
 CREATE FUNCTION kmh_u_mph(brzina_kmh DECIMAL(6,2))
@@ -974,7 +997,6 @@ END//
 DELIMITER ;
 
 SELECT broj_ucestvovanja_vozaca(1); 
-
 
 
 
@@ -1053,10 +1075,8 @@ DELIMITER ;
 SELECT CONCAT(v.ime, ' ', v.prezime) AS najbolji_vozac
 FROM vozac v
 WHERE v.id = najbolji_vozac_u_timu(1,1);
------------------------------------------------------------------------------------------------------------------------------------------------------ 
 
-
--------------------------------------------------------------------------------- VIEW ------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 
 #1
 
@@ -1073,7 +1093,7 @@ LEFT JOIN vozac v ON v.id_tim = t.id
 LEFT JOIN ugovor u ON u.id_tim = t.id
 GROUP BY t.id, t.naziv, t.budzet;
 
-select * from view_statistika_timova;
+SELECT * FROM view_statistika_timova;
 
 
 #2 
@@ -1087,8 +1107,7 @@ JOIN vozac v ON v.id = p.id_vozac
 JOIN tim t ON t.id = v.id_tim
 GROUP BY t.id, t.naziv;
 
-select * from view_bodovi_timova;
-
+SELECT * FROM view_bodovi_timova;
 
 
 #3 
@@ -1103,8 +1122,7 @@ JOIN vozac_bolid vb ON vb.id = r.id_vozac_bolid
 GROUP BY r.id_utrka, vb.id_vozac;
 
 
-select * from view_najbrzi_vozaci;
-
+SELECT * FROM view_najbrzi_vozaci;
 
 
 #4
@@ -1118,7 +1136,7 @@ LEFT JOIN utrka u ON u.id_sezona = s.id
 GROUP BY s.godina;
 
 
-select * from view_broj_utrka_sezona;
+SELECT * FROM view_broj_utrka_sezona;
 
 
 #5
@@ -1143,27 +1161,11 @@ SELECT id_tim, id_sezona, SUM(iznos) AS ukupni_trosak
 FROM trosak_tima
 GROUP BY id_tim, id_sezona;
 
+SELECT * FROM view_trosak_tima;
 
-
------------------------------------------------------------------------------------ PROCEDURE -----------------------------------------------------------------------------
+-- ---------------------------------------------------------
 
 -- dodavanje utrke
-DELIMITER //
-
-CREATE PROCEDURE dodaj_utrku (
-    p_naziv VARCHAR(100),
-    p_datum DATE,
-    p_id_sezona INT,
-    p_id_staza INT
-)
-BEGIN
-    INSERT INTO utrka (naziv, datum, id_sezona, id_staza)
-    VALUES (p_naziv, p_datum, p_id_sezona, p_id_staza);
-END//
-
-DELIMITER ;
-
-
 DELIMITER //
 
 CREATE PROCEDURE dodaj_utrku (
@@ -1209,11 +1211,11 @@ VALUES ('Najjaca utrka V2', '2025-02-15', 1, 1);
 
 
 
--- ---------------------------------------------------------------------------------------------------------------------
+-- ---------------------------------------------------------
 
 #Nikolina
 
-############################################33
+############################################
 #TRANSAKCIJA 1. 
 #Napisati transakciju koja će unijeti podatke za pobjednika utrke te ovisno o tome ažurirati relaciju poredak
 DELIMITER //
@@ -1250,7 +1252,7 @@ END//
 DELIMITER ;
 
 
-############################################33
+############################################
 #TRANSAKCIJA 2.
 #Napisati transakciju koja će obrisati fiksih 5 bodova za zasluženu kaznu 
 START TRANSACTION;
@@ -1291,6 +1293,7 @@ VALUES (3, 2, 1);
 COMMIT;
 select * from bolid;
 select * from vozac_bolid;
+
 ############################################
 #PROCEDURA 
 #Napisati proceduru koja će uvećati pobjede kad vozač ostvari prvo mjesto u utrci.
@@ -1329,7 +1332,7 @@ CALL dodaj_pobjedu_pobjedniku(5);
 SELECT *
 FROM poredak;
 
-#########################################
+############################################
 #PROCEDURA + TRANSAKCIJA
 #Napisati proceduru koja pri prelasku vozača u drugi tim, brišu mu bolid i dodaju novi
 DELIMITER //
@@ -1362,7 +1365,7 @@ CALL transfer_vozaca(10, 2, 2,1 );
 SELECT * FROM vozac_bolid;
 
 
-#########################################
+############################################
 #PROCEDURA + TRANSAKCIJA
 #Napisati transakciju koja poništava plaćanja ako tim prekorači budžet.
 DELIMITER //
@@ -1399,11 +1402,7 @@ END //
 DELIMITER ;
 
 
--- ------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
+-- ---------------------------------------------------------
 # REA
 
 -- 1) Vozači bez ijedne kazne u sezoni
@@ -1566,7 +1565,6 @@ VALUES (67, 1, '01:40:00', 5);
 
 
 
-
 -- 7) FUNKCIJA: prosječne kaznene sekunde vozača po utrci u sezoni
 
 DROP FUNCTION IF EXISTS prosjek_kazni_po_utrci_vozaca;
@@ -1675,6 +1673,3 @@ END//
 DELIMITER ;
 
 CALL prosjek_kazni_tima(3, 1);
-
-
-
